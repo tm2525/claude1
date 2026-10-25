@@ -205,8 +205,12 @@ nav.tabs button.on{color:var(--ink);border-top-color:var(--in)}
       <div class="grid g2" style="grid-template-columns:2fr 1fr">
         <div class="field sugg">
           <label for="fName">Food</label>
-          <input type="text" id="fName" placeholder="e.g. porridge, 50 g oats" required>
+          <div class="row" style="gap:6px;flex-wrap:nowrap">
+            <input type="text" id="fName" placeholder="e.g. porridge, 50 g oats" required style="flex:1">
+            <button type="button" class="btn ghost sm" id="liveBtn" title="Search online" style="white-space:nowrap">Search</button>
+          </div>
           <div class="sugg-list" id="suggList"></div>
+          <div class="status" id="liveStatus" hidden></div>
         </div>
         <div class="field"><label for="fQty">Portions</label><input type="number" id="fQty" value="1" min="0.1" step="0.25"></div>
       </div>
@@ -589,6 +593,39 @@ $('#foodForm').onsubmit=e=>{e.preventDefault(); const name=fName.value.trim(); c
   dayRec(cur).food.push(f);
   if($('#fSave').checked){const ex=state.library.find(x=>x.name.toLowerCase()===name.toLowerCase()); if(ex){Object.assign(ex,{kcal,p:f.p,c:f.c,f:f.f}); ex.uses=(ex.uses||0)+1;} else state.library.push({name,kcal,p:f.p,c:f.c,f:f.f,uses:1});}
   save(); e.target.reset(); $('#fQty').value=1; render(); toast('Added · '+fmt(kcal*f.qty)+' kcal'); fName.focus();};
+
+/* ---------- live food search (Open Food Facts → Claude) ---------- */
+let liveSample=null;
+(async()=>{try{if(window.claude&&typeof claude.use==='function') liveSample=await claude.use('sample');}catch(e){}})();
+function offSearch(q){const ctl=new AbortController(); const t=setTimeout(()=>ctl.abort(),8000);
+  return fetch('https://world.openfoodfacts.org/cgi/search.pl?search_terms='+encodeURIComponent(q)+'&search_simple=1&action=process&json=1&page_size=8&fields=product_name,brands,serving_size,nutriments,countries_tags',{signal:ctl.signal})
+    .then(r=>{if(!r.ok) throw new Error('HTTP '+r.status); return r.json();}).finally(()=>clearTimeout(t))
+    .then(j=>(j.products||[]).map(p=>{const n=p.nutriments||{}; const perS=n['energy-kcal_serving']!=null; const k=perS?n['energy-kcal_serving']:n['energy-kcal_100g'];
+      if(k==null) return null; const g=x=>{const v=perS?n[x+'_serving']:n[x+'_100g']; return v!=null?Math.round(v*10)/10:0;};
+      const nm=[p.brands?p.brands.split(',')[0].trim():'',p.product_name||''].filter(Boolean).join(' ');
+      return {name:nm+(perS&&p.serving_size?' ('+p.serving_size+')':' (100 g)'),kcal:Math.round(k),p:g('proteins'),c:g('carbohydrates'),f:g('fat'),src:'OFF'};}).filter(Boolean));}
+async function claudeSearch(q){const prompt='Give typical nutrition for the food "'+q.replace(/"/g,"'")+'" as eaten in the UK. Reply with only a JSON array of up to 5 objects {"name": food with portion e.g. "Chicken tikka masala, takeaway portion (350 g)", "kcal": number, "protein": g, "carbs": g, "fat": g}, each a plausible portion or variant. Numbers only, per the stated portion.';
+  if(liveSample){const r=await liveSample.json(prompt,{modelTier:'quick'}); return (Array.isArray(r)?r:[]).map(x=>({name:String(x.name||q),kcal:Math.round(Number(x.kcal)||0),p:Number(x.protein)||0,c:Number(x.carbs)||0,f:Number(x.fat)||0,src:'Claude'}));}
+  const key=state.settings.apiKey; if(!key) throw {code:'no_key'};
+  const r=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'content-type':'application/json','x-api-key':key,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify({model:'claude-haiku-4-5',max_tokens:500,messages:[{role:'user',content:prompt}]})});
+  if(!r.ok) throw {code:r.status===401?'bad_key':'upstream_error',message:'HTTP '+r.status};
+  const j=await r.json(); const t=(j.content||[]).filter(c=>c.type==='text').map(c=>c.text).join('\n'); const a=t.indexOf('['),b=t.lastIndexOf(']'); const arr=JSON.parse(t.slice(a,b+1));
+  return arr.map(x=>({name:String(x.name||q),kcal:Math.round(Number(x.kcal)||0),p:Number(x.protein)||0,c:Number(x.carbs)||0,f:Number(x.fat)||0,src:'Claude'}));}
+function showLive(hits){sl.innerHTML=''; hits.slice(0,8).forEach(f=>{const b=document.createElement('button'); b.type='button'; b.className='sugg-item';
+  b.innerHTML='<span>'+esc(f.name)+' <span class="chip" style="font-size:10px">'+f.src+'</span></span><span class="n">'+f.kcal+' kcal</span>';
+  b.onclick=()=>{fName.value=f.name; $('#fKcal').value=f.kcal; $('#fP').value=f.p; $('#fC').value=f.c; $('#fF').value=f.f; sl.classList.remove('on'); $('#fQty').focus();}; sl.appendChild(b);}); sl.classList.add('on');}
+$('#liveBtn').onclick=async()=>{const q=fName.value.trim(); const st=$('#liveStatus'); const btn=$('#liveBtn'); if(q.length<2){fName.focus();return;}
+  btn.disabled=true; st.hidden=false; st.className='status'; st.textContent='Searching…'; sl.classList.remove('on');
+  try{let hits=[]; let via='';
+    try{hits=await offSearch(q); via='Open Food Facts';}catch(e){}
+    if(!hits.length){hits=await claudeSearch(q); via='Claude (typical values)';}
+    if(!hits.length) throw {code:'none'};
+    showLive(hits); st.className='status ok'; st.textContent=hits.length+' result'+(hits.length>1?'s':'')+' from '+via+'. Pick one, then set portions.';
+  }catch(e){st.className='status err'; const c=e&&e.code;
+    st.textContent=c==='no_key'?'No online source reachable here. Add an Anthropic API key under Set to search with Claude.':
+      c==='not_granted'||c==='sampling_disabled'?'Search with Claude is not allowed on this account.':c==='rate_limited'?'Too many searches; try again in a minute.':
+      c==='none'?'Nothing found for "'+q+'". Try a simpler name.':'Search failed ('+(e&&e.message||'offline')+').';}
+  finally{btn.disabled=false;}};
 
 /* ---------- photo a label → Claude reads it ---------- */
 const PROMPT='The photo is a food packet, ideally its nutrition label, or otherwise a food item or plate of food. Reply with only one JSON object: {"name": short product or food name, "serving": what one serving is e.g. "1 pot (150 g)" or "100 g", "kcal": kcal per serving, "protein": g per serving, "carbs": g per serving, "fat": g per serving, "source": "label" or "estimate", "note": one short remark, e.g. which column you used}. UK labels show per 100 g and often per serving: use the per-serving column when present, else use per 100 g and set serving to "100 g". Use kcal, never kJ. Numeric fields are plain numbers. If no food is visible, reply {"error": "what you see instead"}.';
