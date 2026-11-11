@@ -221,6 +221,7 @@ nav.tabs button.on{color:var(--ink);border-top-color:var(--in)}
             <button type="button" class="btn ghost sm" id="liveBtn" title="Search online" style="white-space:nowrap">Search</button>
           </div>
           <div class="sugg-list" id="suggList"></div>
+          <select id="shop" aria-label="Shop to search" style="margin-top:6px;padding:6px 8px;font-size:13px"><option value="">Search any shop</option><option value="ms">M&amp;S only</option><option value="wr">Waitrose only</option></select>
           <div class="status" id="liveStatus" hidden></div>
         </div>
         <div class="field"><label for="fQty">Portions</label><input type="number" id="fQty" value="1" min="0.1" step="0.25"></div>
@@ -689,13 +690,15 @@ $('#foodForm').onsubmit=e=>{e.preventDefault(); const name=fName.value.trim(); c
 let liveSample=null;
 (async()=>{try{if(window.claude&&typeof claude.use==='function') liveSample=await claude.use('sample');}catch(e){}})();
 function offFetch(url,ms){const ctl=new AbortController(); const t=setTimeout(()=>ctl.abort(),ms); return fetch(url,{signal:ctl.signal}).then(r=>{if(!r.ok) throw new Error('HTTP '+r.status); return r.json();}).finally(()=>clearTimeout(t));}
-function offSearch(q){const F='product_name,brands,serving_size,nutriments', e=encodeURIComponent(q);
-  const runs=[offFetch('https://search.openfoodfacts.org/search?q='+e+'&page_size=10&fields='+F,12000).then(j=>j.hits||[]),
-              offFetch('https://world.openfoodfacts.org/cgi/search.pl?search_terms='+e+'&search_simple=1&action=process&json=1&page_size=10&fields='+F,25000).then(j=>j.products||[])]
-    .map(pr=>pr.then(arr=>{const m=arr.map(offMap).filter(Boolean).map(x=>Object.assign(x,{src:'OFF'})); if(!m.length) throw new Error('empty'); return m;}));
+const SHOPS={ms:{name:'M&S',terms:'Marks Spencer',re:/marks|m\s*&\s*s|\bm-s\b|\bm and s\b/i},wr:{name:'Waitrose',terms:'Waitrose',re:/waitrose/i}};
+const curShop=()=>SHOPS[$('#shop').value]||null;
+function offSearch(q,shop){const F='product_name,brands,stores,serving_size,nutriments', e=encodeURIComponent((shop?shop.terms+' ':'')+q);
+  const runs=[offFetch('https://search.openfoodfacts.org/search?q='+e+'&page_size='+(shop?24:10)+'&fields='+F,12000).then(j=>j.hits||[]),
+              offFetch('https://world.openfoodfacts.org/cgi/search.pl?search_terms='+e+'&search_simple=1&action=process&json=1&page_size='+(shop?24:10)+'&fields='+F,25000).then(j=>j.products||[])]
+    .map(pr=>pr.then(arr=>{let m=arr.map(offMap).filter(Boolean).map(x=>Object.assign(x,{src:'OFF'})); if(shop) m=m.filter(x=>shop.re.test(x.brand||'')); if(!m.length) throw new Error('empty'); return m;}));
   return new Promise((res,rej)=>{let fails=0, empty=0; runs.forEach(pr=>pr.then(res,err=>{fails++; if(err&&err.message==='empty') empty++; if(fails===runs.length) rej(new Error(empty?'empty':'unreachable'));}));});}
 function localSearch(q){const ts=q.toLowerCase().split(/[^a-z0-9]+/).filter(t=>t.length>1); if(!ts.length) return []; return allFoods().map(f=>({f,n:ts.filter(t=>f.name.toLowerCase().includes(t)).length})).filter(x=>x.n>0).sort((x,y)=>y.n-x.n||(y.f.uses||0)-(x.f.uses||0)).slice(0,8).map(x=>({name:x.f.name,kcal:x.f.kcal,p:x.f.p,c:x.f.c,f:x.f.f,src:x.f.starter?'built-in':'saved'}));}
-async function claudeSearch(q){const prompt='Give typical nutrition for the food "'+q.replace(/"/g,"'")+'" as eaten in the UK. Reply with only a JSON array of up to 5 objects {"name": food with portion e.g. "Chicken tikka masala, takeaway portion (350 g)", "kcal": number, "protein": g, "carbs": g, "fat": g}, each a plausible portion or variant. Numbers only, per the stated portion.';
+async function claudeSearch(q){const prompt='Give typical nutrition for the food "'+q.replace(/"/g,"'")+'" '+(curShop()?'as sold by '+curShop().name+' in the UK, using their own-brand product where one exists and naming it as they do':'as eaten in the UK')+'. Reply with only a JSON array of up to 5 objects {"name": food with portion e.g. "Chicken tikka masala, takeaway portion (350 g)", "kcal": number, "protein": g, "carbs": g, "fat": g}, each a plausible portion or variant. Numbers only, per the stated portion.';
   if(liveSample){const r=await liveSample.json(prompt,{modelTier:'quick'}); return (Array.isArray(r)?r:[]).map(x=>({name:String(x.name||q),kcal:Math.round(Number(x.kcal)||0),p:Number(x.protein)||0,c:Number(x.carbs)||0,f:Number(x.fat)||0,src:'Claude'}));}
   const key=state.settings.apiKey; if(!key) throw {code:'no_key'};
   const r=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'content-type':'application/json','x-api-key':key,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify({model:'claude-haiku-5-5',max_tokens:500,messages:[{role:'user',content:prompt}]})});
@@ -708,10 +711,11 @@ function showLive(hits){sl.innerHTML=''; hits.slice(0,8).forEach(f=>{const b=doc
 $('#liveBtn').onclick=async()=>{const q=fName.value.trim(); const st=$('#liveStatus'); const btn=$('#liveBtn'); if(q.length<2){fName.focus();return;} if(/^\d{8,14}$/.test(q)){barLookup(q);return;}
   btn.disabled=true; st.hidden=false; st.className='status'; st.textContent='Searching… products can take up to 20 seconds.'; sl.classList.remove('on');
   let hits=[], via='', why='', ai='';
-  try{hits=await offSearch(q); via='Open Food Facts';}catch(e){why=e&&e.message||'unreachable';}
-  if(!hits.length){try{hits=await claudeSearch(q); via='Claude (typical values)';}catch(e){ai=e&&e.code||'failed';}}
+  const shop=curShop();
+  try{hits=await offSearch(q,shop); via='Open Food Facts'+(shop?', '+shop.name+' only':'');}catch(e){why=e&&e.message||'unreachable';}
+  if(!hits.length){try{hits=await claudeSearch(q); via='Claude (typical '+(shop?shop.name+' ':'')+'values, check against the pack)';}catch(e){ai=e&&e.code||'failed';}}
   const online=hits.length>0; if(!online){hits=localSearch(q); via='your saved and built-in foods';}
-  const reason=why==='unreachable'?'The product database could not be reached'+(IN_VIEWER?' from inside Claude':'')+'.':'No product matched online.';
+  const reason=why==='unreachable'?'The product database could not be reached'+(IN_VIEWER?' from inside Claude':'')+'.':'No '+(shop?shop.name+' ':'')+'product matched online.';
   if(hits.length){showLive(hits); st.className='status ok'; st.textContent=online?hits.length+' result'+(hits.length>1?'s':'')+' from '+via+'. Pick one, then set portions.':reason+' Showing '+hits.length+' from '+via+'.';}
   else{st.className='status err'; st.textContent=reason+' Nothing saved or built in matches “'+q+'” either. Try a simpler name'+(ai==='no_key'&&!IN_VIEWER?', or add an API key under Set for typical values of any food.':', or enter the values by hand.');}
   btn.disabled=false;};
@@ -892,7 +896,7 @@ fName.addEventListener('input',syncGrams); $('#fQty').addEventListener('focus',s
 $('#fGrams').oninput=e=>{const g=num(e.target.value); if(g!=null&&g>0) $('#fQty').value=Math.round(g)/100;};
 function offMap(p){const n=p.nutriments||{}; const perS=n['energy-kcal_serving']!=null; const k=perS?n['energy-kcal_serving']:n['energy-kcal_100g']; if(k==null) return null;
   const g=x=>{const v=perS?n[x+'_serving']:n[x+'_100g']; return v!=null?Math.round(v*10)/10:0;}; const br=Array.isArray(p.brands)?String(p.brands[0]||''):(p.brands?String(p.brands).split(',')[0].trim():''); let pn=p.product_name; if(pn&&typeof pn==='object') pn=pn.en||pn.main||Object.values(pn)[0]; const nm=(pn&&br&&String(pn).toLowerCase().startsWith(br.toLowerCase())?[pn]:[br,pn||'']).filter(Boolean).join(' ')||'Product';
-  return {name:nm+(perS&&p.serving_size?' ('+p.serving_size+')':' (100 g)'),kcal:Math.round(k),p:g('proteins'),c:g('carbohydrates'),f:g('fat')};}
+  return {name:nm+(perS&&p.serving_size?' ('+p.serving_size+')':' (100 g)'),kcal:Math.round(k),p:g('proteins'),c:g('carbohydrates'),f:g('fat'),brand:br+' '+(Array.isArray(p.stores)?p.stores.join(' '):(p.stores||''))};}
 async function offCode(code){const r=await fetch('https://world.openfoodfacts.org/api/v2/product/'+code+'.json?fields=product_name,brands,serving_size,nutriments'); if(r.status===404) return null; if(!r.ok) throw new Error('HTTP '+r.status); const j=await r.json(); return j&&j.product?offMap(j.product):null;}
 let zxP=null; function loadZX(){return zxP||(zxP=new Promise((res,rej)=>{const s=document.createElement('script'); s.src='zxing.min.js'; s.onload=res; s.onerror=()=>{zxP=null; rej(new Error('scanner did not load'));}; document.head.appendChild(s);}));}
 function shrinkURL(file,max){return new Promise((res,rej)=>{const img=new Image(); const u=URL.createObjectURL(file); img.onload=()=>{URL.revokeObjectURL(u); const s=Math.min(1,max/Math.max(img.width,img.height)); const c=document.createElement('canvas'); c.width=Math.round(img.width*s); c.height=Math.round(img.height*s); c.getContext('2d').drawImage(img,0,0,c.width,c.height); res(c.toDataURL('image/jpeg',0.92));}; img.onerror=()=>{URL.revokeObjectURL(u); rej(new Error('bad image'));}; img.src=u;});}
@@ -936,7 +940,9 @@ function renderMore(){
   else{chip.textContent='needs data'; chip.className='chip'; use.hidden=true; note.textContent='Needs 4 weigh-ins spread over at least two weeks and 10 logged days in the last four weeks. So far: '+E.w+' weigh-in'+(E.w===1?'':'s')+', '+E.logged+' logged day'+(E.logged===1?'':'s')+'. Weigh at the same time of day for a cleaner trend.';}
   const m=MAC(); ['p','c','f'].forEach(k=>{const el=$('#mt_'+k); if(document.activeElement!==el) el.value=m[k]||'';});
   const kc=m.p*4+m.c*4+m.f*9; $('#mtNote').textContent=kc?'These add up to '+fmt(kc)+' kcal, against today’s target of '+fmt(targetFor(cur,burnFor(cur).kcal))+'. The Day tab shows progress against each. Tap any logged food to change its macros.':'Leave blank for no target. Tap any logged food on the Day tab to change its macros.';
-  $('#sEat').value=eatBack(); $('#keyCard').hidden=IN_VIEWER; syncGrams(); renderEx(); renderQuick(); const n=Object.values(state.days).reduce((a,d)=>a+d.food.length,0); if(state.fast&&foodN!=null&&n>foodN) endFast(true); foodN=n; renderFast();}
+  if(document.activeElement!==$('#shop')) $('#shop').value=state.settings.shop||''; $('#sEat').value=eatBack(); $('#keyCard').hidden=IN_VIEWER; syncGrams(); renderEx(); renderQuick(); const n=Object.values(state.days).reduce((a,d)=>a+d.food.length,0); if(state.fast&&foodN!=null&&n>foodN) endFast(true); foodN=n; renderFast();}
+
+$('#shop').onchange=e=>{state.settings.shop=e.target.value; save();};
 
 /* ---------- fast timer ---------- */
 let foodN=null;
