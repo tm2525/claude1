@@ -352,9 +352,9 @@ nav.tabs button.on{color:var(--ink);border-top-color:var(--in)}
     <div class="sec-head"><h2>You</h2></div>
     <div class="grid g2">
       <div class="field"><label for="sBmr">BMR kcal/day</label><input type="number" id="sBmr" min="800" step="10"></div>
-      <div class="field"><label for="sGoal">Daily target (net)</label><input type="number" id="sGoal" step="50"></div>
+      <div class="field"><label for="sMode">Target type</label><select id="sMode"><option value="intake">Fixed intake</option><option value="net">Net vs burn</option></select></div><div class="field"><label for="sGoal" id="sGoalLab">Intake kcal/day</label><input type="number" id="sGoal" step="50"></div>
     </div>
-    <p class="small muted" style="margin:10px 0 0">Target is net kcal: −200 means aim to eat 200 below burn. 0 holds weight. Your BMR is used whenever a source gives only active kcal; estimate it below if unsure.</p>
+    <p class="small muted" style="margin:10px 0 0">Target is net kcal: −200 means aim to eat 200 below burn. 0 holds weight. Fixed intake is the same kcal ceiling every day, whatever you burn. Your BMR is used whenever a source gives only active kcal; estimate it below if unsure.</p>
     <details><summary>Estimate BMR (Mifflin–St Jeor)</summary>
       <div class="grid g4" style="margin-top:8px">
         <div class="field"><label for="eSex">Sex</label><select id="eSex"><option value="m">Male</option><option value="f">Female</option></select></div>
@@ -413,7 +413,7 @@ const STARTER=[
 ].map(a=>({name:a[0],kcal:a[1],p:a[2],c:a[3],f:a[4],starter:true}));
 
 /* ---------- state ---------- */
-let state={settings:{bmr:1300,goal:-200,source:'auto',ouraToken:'',apiKey:''},days:{},library:[]};
+let state={settings:{bmr:1300,goal:-200,targetMode:'intake',intake:1100,source:'auto',ouraToken:'',apiKey:''},days:{},library:[]};
 try{const raw=localStorage.getItem(KEY); if(raw){const s=JSON.parse(raw); state={...state,...s,settings:{...state.settings,...(s.settings||{})}};
   if(state.settings.bmr===1750&&state.settings.goal===-300){state.settings.bmr=1300;state.settings.goal=-200;}}}catch(e){}
 function save(){try{localStorage.setItem(KEY,JSON.stringify(state));}catch(e){}}
@@ -440,17 +440,18 @@ function burnFor(key){const d=state.days[key]||{burn:{}}; const s=state.settings
   return {kcal:srcTotal(d,avail[0]),src:avail[0]};}
 function intakeFor(key){const d=state.days[key]; if(!d) return 0; return d.food.reduce((a,f)=>a+f.kcal*f.qty,0);}
 
+function targetFor(burn){const s=state.settings; return s.targetMode==='intake'?(Number(s.intake)||0):burn+s.goal;}
 /* ---------- render: header ---------- */
 function renderHeader(){
   const d=new Date(cur+'T12:00:00'); const isT=cur===todayIso();
   const lab=$('#dateLabel'); lab.textContent=isT?'Today · '+d.toLocaleDateString('en-GB',{day:'2-digit',month:'short'}):d.toLocaleDateString('en-GB',{weekday:'short',day:'2-digit',month:'short'});
   lab.classList.toggle('today',isT);
-  const inK=intakeFor(cur), b=burnFor(cur), net=inK-b.kcal, goal=state.settings.goal;
+  const inK=intakeFor(cur), b=burnFor(cur), net=inK-b.kcal, target=targetFor(b.kcal);
   $('#bIn').textContent=fmt(inK); $('#bOut').textContent=fmt(b.kcal);
   const pill=$('#bNetPill'); pill.textContent=sign(net);
   pill.className='net-pill '+(net<-25?'deficit':net>25?'surplus':'even');
-  $('#bNetLab').textContent=net<=goal?'on target':'over target by '+fmt(net-goal);
-  const target=b.kcal+goal; const scale=Math.max(b.kcal,inK,target,1)*1.05;
+  $('#bNetLab').textContent=inK<=target?fmt(target-inK)+' left':'over by '+fmt(inK-target);
+  const scale=Math.max(b.kcal,inK,target,1)*1.05;
   const fill=$('#trackFill'); fill.style.width=Math.min(100,inK/scale*100)+'%'; fill.classList.toggle('over',inK>target);
   $('#trackGoal').style.left=(target/scale*100)+'%';
   $('#tlLeft').textContent=fmt(inK)+' kcal in'; $('#tlMid').textContent='target '+fmt(target);
@@ -510,7 +511,7 @@ function renderWeek(){
   $('#sIn').textContent=fmt(aIn); $('#sOut').textContent=fmt(aOut); $('#sNet').textContent=sign(aIn-aOut); $('#sTot').textContent=sign(tot);
   $('#wkRange').textContent=wk.length+' of 7 days logged';
   const kg=tot/7700;
-  $('#sNote').textContent='Net '+sign(tot)+' kcal over '+wk.length+' logged day'+(wk.length>1?'s':'')+' ≈ '+(kg<0?'−':'+')+Math.abs(kg).toFixed(2)+' kg of tissue at 7,700 kcal/kg. Target was '+sign(state.settings.goal*wk.length)+'. Wearable burn estimates carry ±10–20% error, so trust the direction more than the decimal.';
+  $('#sNote').textContent='Net '+sign(tot)+' kcal over '+wk.length+' logged day'+(wk.length>1?'s':'')+' ≈ '+(kg<0?'−':'+')+Math.abs(kg).toFixed(2)+' kg of tissue at 7,700 kcal/kg. '+(state.settings.targetMode==='intake'?'Intake target '+fmt(state.settings.intake)+' kcal a day; you averaged '+fmt(aIn)+'.':'Target was '+sign(state.settings.goal*wk.length)+'.')+' Wearable burn estimates carry ±10–20% error, so trust the direction more than the decimal.';
 }
 
 /* ---------- render: sources ---------- */
@@ -726,10 +727,11 @@ function renderLib(){const q=$('#libSearch').value.trim().toLowerCase(); const l
 $('#libSearch').oninput=renderLib;
 
 /* ---------- settings ---------- */
-function renderSettings(){$('#sBmr').value=state.settings.bmr; $('#sGoal').value=state.settings.goal; $('#sKey').value=state.settings.apiKey||''; const kc=$('#keyChip'); kc.textContent=state.settings.apiKey?'key saved':'off'; kc.className='chip '+(state.settings.apiKey?'live':''); if(window.__refreshLabel) window.__refreshLabel();}
+function renderSettings(){$('#sBmr').value=state.settings.bmr; const im=state.settings.targetMode==='intake'; $('#sMode').value=im?'intake':'net'; $('#sGoal').value=im?state.settings.intake:state.settings.goal; $('#sGoalLab').textContent=im?'Intake kcal/day':'Net kcal vs burn'; $('#sKey').value=state.settings.apiKey||''; const kc=$('#keyChip'); kc.textContent=state.settings.apiKey?'key saved':'off'; kc.className='chip '+(state.settings.apiKey?'live':''); if(window.__refreshLabel) window.__refreshLabel();}
 $('#sKey').onchange=e=>{state.settings.apiKey=e.target.value.trim(); save(); render(); toast(state.settings.apiKey?'Label reader on':'Label reader off');};
 $('#sBmr').onchange=e=>{const v=num(e.target.value); if(v){state.settings.bmr=v; save(); render();}};
-$('#sGoal').onchange=e=>{state.settings.goal=num(e.target.value)||0; save(); render();};
+$('#sGoal').onchange=e=>{const v=num(e.target.value)||0; if(state.settings.targetMode==='intake') state.settings.intake=Math.max(0,v); else state.settings.goal=v; save(); render();};
+$('#sMode').onchange=e=>{state.settings.targetMode=e.target.value; save(); render();};
 $('#eCalc').onclick=()=>{const a=num($('#eAge').value),h=num($('#eH').value),w=num($('#eW').value); const out=$('#eOut'); if(!a||!h||!w){out.className='status err';out.textContent='Fill in age, height and weight.';return;}
   const bmr=Math.round(10*w+6.25*h-5*a+($('#eSex').value==='m'?5:-161)); state.settings.bmr=bmr; save(); render(); out.className='status ok'; out.textContent='BMR set to '+bmr+' kcal/day.';};
 $('#bkCopy').onclick=()=>{const txt=JSON.stringify(state); const st=$('#bkStatus'); const fallback=()=>{$('#bkText').value=txt; $('#bkText').select(); st.className='status'; st.textContent='Clipboard unavailable here; the JSON is in the box, selected. Copy it manually.';};
