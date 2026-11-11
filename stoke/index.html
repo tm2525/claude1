@@ -202,13 +202,19 @@ nav.tabs button.on{color:var(--ink);border-top-color:var(--in)}
       <div style="min-width:0"><div class="eyebrow">Fast</div><div class="num" id="fastState" style="font-size:18px;font-weight:600">Not fasting</div><div class="small faint" id="fastSub"></div></div>
       <button type="button" class="btn sm" id="fastBtn">Start fast</button>
     </div>
-    <div class="field" id="fastEdit" style="margin-top:8px" hidden><label for="fastStart">Started</label><input type="datetime-local" id="fastStart"></div>
+    <div id="fastNote" hidden style="margin-top:8px;padding:8px 10px;border-left:4px solid var(--in);background:var(--in-soft);border-radius:0 4px 4px 0;font-weight:600"></div>
+    <details style="margin-top:8px"><summary>Fast note and start time</summary>
+      <div class="field" id="fastEdit" style="margin-top:8px" hidden><label for="fastStart">Started</label><input type="datetime-local" id="fastStart"></div>
+      <div class="field" style="margin-top:8px"><label for="fastNoteIn">Note shown while fasting</label><input type="text" id="fastNoteIn" placeholder="e.g. No peanut butter. Tea instead."></div>
+      <div class="field" style="margin-top:8px"><label for="fastWatch">Show the note if I start to log</label><input type="text" id="fastWatch" placeholder="peanut butter, biscuits"></div>
+    </details>
   </section>
 
   <section class="card">
     <div class="sec-head" style="flex-wrap:wrap"><h2>Log food</h2>
-      <div class="row" id="labelRow" hidden><label class="btn ghost sm" for="mealFile" id="mealBtn" style="cursor:pointer">Meal photo</label><input type="file" id="mealFile" accept="image/*" multiple hidden><input type="file" id="mealFile2" accept="image/*" hidden><label class="btn ghost sm" for="labelFile" id="labelBtn" style="cursor:pointer">Label photo</label><input type="file" id="labelFile" accept="image/*" capture="environment" hidden><label class="btn ghost sm" for="barFile" id="barBtn" style="cursor:pointer">Barcode</label><input type="file" id="barFile" accept="image/*" capture="environment" hidden></div></div>
+      <div class="row" id="labelRow" hidden><label class="btn ghost sm" for="mealFile" id="mealBtn" style="cursor:pointer">Meal photo</label><input type="file" id="mealFile" accept="image/*" multiple hidden><input type="file" id="mealFile2" accept="image/*" hidden><input type="file" id="mealFile3" accept="image/*" hidden><label class="btn ghost sm" for="labelFile" id="labelBtn" style="cursor:pointer">Label photo</label><input type="file" id="labelFile" accept="image/*" capture="environment" hidden><label class="btn ghost sm" for="barFile" id="barBtn" style="cursor:pointer">Barcode</label><input type="file" id="barFile" accept="image/*" capture="environment" hidden></div></div>
     <div class="row" style="gap:6px;flex-wrap:nowrap;margin-bottom:8px"><input type="text" id="sayText" placeholder="Type or dictate: two eggs on toast, flat white" style="flex:1;min-width:0" autocomplete="off"><button type="button" class="btn sm" id="sayBtn" style="white-space:nowrap">Log it</button></div>
+    <div class="small faint" style="margin:-2px 0 8px">Hand measures work too: a fist of rice, a palm of chicken, a thumb of butter.</div>
     <div class="row" id="quickRow" style="gap:6px;margin-bottom:8px" hidden></div>
     <div class="status" id="labelStatus" hidden></div>
     <div id="mealPanel" class="note" style="margin:8px 0 12px" hidden></div>
@@ -221,13 +227,16 @@ nav.tabs button.on{color:var(--ink);border-top-color:var(--in)}
             <button type="button" class="btn ghost sm" id="liveBtn" title="Search online" style="white-space:nowrap">Search</button>
           </div>
           <div class="sugg-list" id="suggList"></div>
-          <select id="shop" aria-label="Shop to search" style="margin-top:6px;padding:6px 8px;font-size:13px"><option value="">Search any shop</option><option value="ms">M&amp;S only</option><option value="wr">Waitrose only</option><option value="al">Aldi only</option><option value="oc">Ocado only</option></select>
+          <select id="shop" aria-label="Shop to search" style="margin-top:6px;padding:6px 8px;font-size:13px"><option value="">Search any shop</option><option value="ms">M&amp;S only</option><option value="wr">Waitrose only</option><option value="al">Aldi only</option><option value="oc">Ocado only</option><option value="rest">Restaurant or café chain menu</option></select>
           <div class="status" id="liveStatus" hidden></div>
         </div>
         <div class="field"><label for="fQty">Portions</label><input type="number" id="fQty" value="1" min="0.1" step="0.25"></div>
       </div>
       <div class="grid g4" style="margin-top:10px">
-        <div class="field" id="fGramsWrap" hidden><label for="fGrams">Weighed g</label><input type="number" id="fGrams" min="0" step="1" placeholder="scales"></div>
+        <div class="field per100" id="fGramsWrap" hidden><label for="fGrams">Grams eaten</label><input type="number" id="fGrams" min="0" step="1" placeholder="g"></div>
+        <div class="field per100" hidden><label for="fMeas">Hand measure</label><div class="row" style="gap:4px;flex-wrap:nowrap"><input type="number" id="fMeasN" min="0" step="0.5" value="1" aria-label="How many" style="width:46px;padding:9px 4px;text-align:center"><select id="fMeas" style="min-width:0;padding:9px 4px"><option value="">choose</option><option value="175">fist (rice, pasta, veg)</option><option value="100">palm (meat, fish)</option><option value="30">handful (nuts, snacks)</option><option value="15">thumb (butter, cheese, spreads)</option><option value="15">tablespoon</option><option value="5">teaspoon</option><option value="250">mug</option></select></div></div>
+        <div class="field per100" hidden><label for="fPack">Pack size g</label><input type="number" id="fPack" min="0" step="1" placeholder="from the pack"></div>
+        <div class="field per100" hidden><label for="fFrac">Ate of the pack</label><select id="fFrac"><option value="">choose</option><option value="0.25">a quarter</option><option value="0.3333">a third</option><option value="0.5">half</option><option value="0.6667">two thirds</option><option value="0.75">three quarters</option><option value="1">all of it</option></select></div>
         <div class="field"><label for="fKcal">kcal / portion</label><input type="number" id="fKcal" min="0" step="1" required></div>
         <div class="field"><label for="fP">Protein g</label><input type="number" id="fP" min="0" step="0.5"></div>
         <div class="field"><label for="fC">Carbs g</label><input type="number" id="fC" min="0" step="0.5"></div>
@@ -410,6 +419,17 @@ nav.tabs button.on{color:var(--ink);border-top-color:var(--in)}
     </details>
   </section>
   <section class="card">
+    <div class="sec-head"><h2>My plates and bowls</h2><span class="small faint">measure once</span></div>
+    <div class="grid g2">
+      <div class="field"><label for="wr_plate">Dinner plate, cm across</label><input type="number" id="wr_plate" min="0" step="0.5" placeholder="e.g. 27"></div>
+      <div class="field"><label for="wr_bowl">Bowl, cm across</label><input type="number" id="wr_bowl" min="0" step="0.5" placeholder="e.g. 16"></div>
+      <div class="field"><label for="wr_bowlMl">Bowl holds, ml</label><input type="number" id="wr_bowlMl" min="0" step="10" placeholder="e.g. 500"></div>
+      <div class="field"><label for="wr_mug">Mug holds, ml</label><input type="number" id="wr_mug" min="0" step="10" placeholder="e.g. 300"></div>
+    </div>
+    <p class="small muted" style="margin:10px 0 0">Meal photos use these as the scale whenever your plate, bowl or mug is in shot. For "holds", fill it to the brim from a measuring jug.</p>
+    <div class="row" style="margin-top:10px;justify-content:space-between"><span class="small" id="calibNote"></span><button type="button" class="btn ghost sm" id="calibReset" hidden>Reset</button></div>
+  </section>
+  <section class="card">
     <div class="sec-head"><h2>Macro targets</h2><span class="small faint">grams a day</span></div>
     <div class="grid g3">
       <div class="field"><label for="mt_p">Protein</label><input type="number" id="mt_p" min="0" step="5"></div>
@@ -483,7 +503,7 @@ const STARTER=[
 ].map(a=>({name:a[0],kcal:a[1],p:a[2],c:a[3],f:a[4],starter:true}));
 
 /* ---------- state ---------- */
-let state={settings:{bmr:1300,goal:-200,targetMode:'intake',intake:1100,source:'auto',ouraToken:'',apiKey:'',macro:{p:0,c:0,f:0},eatBack:100,bank:false},days:{},library:[],weights:{}};
+let state={settings:{bmr:1300,goal:-200,targetMode:'intake',intake:1100,source:'auto',ouraToken:'',apiKey:'',macro:{p:0,c:0,f:0},eatBack:100,bank:false,fastNote:'No peanut butter during the fast.',fastWatch:'peanut butter',ware:{}},days:{},library:[],weights:{}};
 try{const raw=localStorage.getItem(KEY); if(raw){const s=JSON.parse(raw); state={...state,...s,settings:{...state.settings,...(s.settings||{})}};
   if(state.settings.bmr===1750&&state.settings.goal===-300){state.settings.bmr=1300;state.settings.goal=-200;}}}catch(e){}
 function save(){try{localStorage.setItem(KEY,JSON.stringify(state));}catch(e){}}
@@ -677,7 +697,7 @@ fName.addEventListener('input',()=>{const q=fName.value.trim().toLowerCase(); sl
   const hits=allFoods().filter(f=>f.name.toLowerCase().includes(q)).sort((a,b)=>(b.uses||0)-(a.uses||0)).slice(0,8);
   if(!hits.length){sl.classList.remove('on');return;}
   hits.forEach(f=>{const b=document.createElement('button'); b.type='button'; b.className='sugg-item'; b.innerHTML='<span>'+esc(f.name)+'</span><span class="n">'+f.kcal+' kcal</span>';
-    b.onclick=()=>{fName.value=f.name; $('#fKcal').value=f.kcal; $('#fP').value=f.p; $('#fC').value=f.c; $('#fF').value=f.f; sl.classList.remove('on'); $('#fQty').focus();}; sl.appendChild(b);});
+    b.onclick=()=>fillFood(f); sl.appendChild(b);});
   sl.classList.add('on');});
 document.addEventListener('click',e=>{if(!e.target.closest('.sugg')) sl.classList.remove('on');});
 $('#foodForm').onsubmit=e=>{e.preventDefault(); const name=fName.value.trim(); const kcal=num($('#fKcal').value); if(!name||kcal==null) return;
@@ -685,21 +705,22 @@ $('#foodForm').onsubmit=e=>{e.preventDefault(); const name=fName.value.trim(); c
   dayRec(cur).food.push(f);
   if($('#fSave').checked){const ex=state.library.find(x=>x.name.toLowerCase()===name.toLowerCase()); if(ex){Object.assign(ex,{kcal,p:f.p,c:f.c,f:f.f}); ex.uses=(ex.uses||0)+1;} else state.library.push({name,kcal,p:f.p,c:f.c,f:f.f,uses:1});}
   if(pendCode&&Date.now()-pendCode.t<600000&&$('#fSave').checked){const it=state.library.find(x=>x.name.toLowerCase()===name.toLowerCase()); if(it){state.library.forEach(x=>{if(x.code===pendCode.code) delete x.code;}); it.code=pendCode.code;}} pendCode=null;
-  save(); e.target.reset(); $('#fQty').value=1; render(); toast('Added · '+fmt(kcal*f.qty)+' kcal'); fName.focus();};
+  if($('#fSave').checked){const it=state.library.find(x=>x.name.toLowerCase()===name.toLowerCase()); const g=num($('#fGrams').value), pk=num($('#fPack').value); if(it){if(g) it.grams=g; if(pk) it.pack=pk;}}
+  save(); e.target.reset(); $('#fQty').value=1; $('#fMeasN').value=1; render(); toast('Added · '+fmt(kcal*f.qty)+' kcal'); fName.focus();};
 
 /* ---------- live food search (Open Food Facts → Claude) ---------- */
 let liveSample=null;
 (async()=>{try{if(window.claude&&typeof claude.use==='function') liveSample=await claude.use('sample');}catch(e){}})();
 function offFetch(url,ms){const ctl=new AbortController(); const t=setTimeout(()=>ctl.abort(),ms); return fetch(url,{signal:ctl.signal}).then(r=>{if(!r.ok) throw new Error('HTTP '+r.status); return r.json();}).finally(()=>clearTimeout(t));}
-const SHOPS={ms:{name:'M&S',terms:'Marks Spencer',re:/marks|m\s*&\s*s|\bm-s\b|\bm and s\b/i},wr:{name:'Waitrose',terms:'Waitrose',re:/waitrose/i},al:{name:'Aldi',terms:'Aldi',re:/aldi/i},oc:{name:'Ocado',terms:'Ocado',re:/ocado/i}};
+const SHOPS={ms:{name:'M&S',terms:'Marks Spencer',re:/marks|m\s*&\s*s|\bm-s\b|\bm and s\b/i},rest:{name:'chain menu',rest:true,re:/./},wr:{name:'Waitrose',terms:'Waitrose',re:/waitrose/i},al:{name:'Aldi',terms:'Aldi',re:/aldi/i},oc:{name:'Ocado',terms:'Ocado',re:/ocado/i}};
 const curShop=()=>SHOPS[$('#shop').value]||null;
-function offSearch(q,shop){const F='product_name,brands,stores,serving_size,nutriments', e=encodeURIComponent((shop?shop.terms+' ':'')+q);
+function offSearch(q,shop){const F='product_name,brands,stores,serving_size,serving_quantity,product_quantity,nutriments', e=encodeURIComponent((shop?shop.terms+' ':'')+q);
   const runs=[offFetch('https://search.openfoodfacts.org/search?q='+e+'&page_size='+(shop?24:10)+'&fields='+F,12000).then(j=>j.hits||[]),
               offFetch('https://world.openfoodfacts.org/cgi/search.pl?search_terms='+e+'&search_simple=1&action=process&json=1&page_size='+(shop?24:10)+'&fields='+F,25000).then(j=>j.products||[])]
     .map(pr=>pr.then(arr=>{let m=arr.map(offMap).filter(Boolean).map(x=>Object.assign(x,{src:'OFF'})); if(shop) m=m.filter(x=>shop.re.test(x.brand||'')); if(!m.length) throw new Error('empty'); return m;}));
   return new Promise((res,rej)=>{let fails=0, empty=0; runs.forEach(pr=>pr.then(res,err=>{fails++; if(err&&err.message==='empty') empty++; if(fails===runs.length) rej(new Error(empty?'empty':'unreachable'));}));});}
 function localSearch(q){const ts=q.toLowerCase().split(/[^a-z0-9]+/).filter(t=>t.length>1); if(!ts.length) return []; return allFoods().map(f=>({f,n:ts.filter(t=>f.name.toLowerCase().includes(t)).length})).filter(x=>x.n>0).sort((x,y)=>y.n-x.n||(y.f.uses||0)-(x.f.uses||0)).slice(0,8).map(x=>({name:x.f.name,kcal:x.f.kcal,p:x.f.p,c:x.f.c,f:x.f.f,src:x.f.starter?'built-in':'saved'}));}
-async function claudeSearch(q){const prompt='Give typical nutrition for the food "'+q.replace(/"/g,"'")+'" '+(curShop()?'as sold by '+curShop().name+' in the UK, using their own-brand product where one exists and naming it as they do':'as eaten in the UK')+'. Reply with only a JSON array of up to 5 objects {"name": food with portion e.g. "Chicken tikka masala, takeaway portion (350 g)", "kcal": number, "protein": g, "carbs": g, "fat": g}, each a plausible portion or variant. Numbers only, per the stated portion.';
+async function claudeSearch(q){const prompt='Give typical nutrition for the food "'+q.replace(/"/g,"'")+'" '+(curShop()&&curShop().rest?'as published on the menu of the UK restaurant, cafe or takeaway chain named in the query, for its standard portion, with the chain in the name':curShop()?'as sold by '+curShop().name+' in the UK, using their own-brand product where one exists and naming it as they do':'as eaten in the UK')+'. Reply with only a JSON array of up to 5 objects {"name": food with portion e.g. "Chicken tikka masala, takeaway portion (350 g)", "kcal": number, "protein": g, "carbs": g, "fat": g}, each a plausible portion or variant. Numbers only, per the stated portion.';
   if(liveSample){const r=await liveSample.json(prompt,{modelTier:'quick'}); return (Array.isArray(r)?r:[]).map(x=>({name:String(x.name||q),kcal:Math.round(Number(x.kcal)||0),p:Number(x.protein)||0,c:Number(x.carbs)||0,f:Number(x.fat)||0,src:'Claude'}));}
   const key=state.settings.apiKey; if(!key) throw {code:'no_key'};
   const r=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'content-type':'application/json','x-api-key':key,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify({model:'claude-haiku-5-5',max_tokens:500,messages:[{role:'user',content:prompt}]})});
@@ -708,21 +729,21 @@ async function claudeSearch(q){const prompt='Give typical nutrition for the food
   return arr.map(x=>({name:String(x.name||q),kcal:Math.round(Number(x.kcal)||0),p:Number(x.protein)||0,c:Number(x.carbs)||0,f:Number(x.fat)||0,src:'Claude'}));}
 function showLive(hits){sl.innerHTML=''; hits.slice(0,8).forEach(f=>{const b=document.createElement('button'); b.type='button'; b.className='sugg-item';
   b.innerHTML='<span>'+esc(f.name)+' <span class="chip" style="font-size:10px">'+f.src+'</span></span><span class="n">'+f.kcal+' kcal</span>';
-  b.onclick=()=>{fName.value=f.name; $('#fKcal').value=f.kcal; $('#fP').value=f.p; $('#fC').value=f.c; $('#fF').value=f.f; sl.classList.remove('on'); $('#fQty').focus();}; sl.appendChild(b);}); sl.classList.add('on');}
+  b.onclick=()=>fillFood(f); sl.appendChild(b);}); sl.classList.add('on');}
 $('#liveBtn').onclick=async()=>{const q=fName.value.trim(); const st=$('#liveStatus'); const btn=$('#liveBtn'); if(q.length<2){fName.focus();return;} if(/^\d{8,14}$/.test(q)){barLookup(q);return;}
   btn.disabled=true; st.hidden=false; st.className='status'; st.textContent='Searching… products can take up to 20 seconds.'; sl.classList.remove('on');
   let hits=[], via='', why='', ai='';
   const shop=curShop();
-  try{hits=await offSearch(q,shop); via='Open Food Facts'+(shop?', '+shop.name+' only':'');}catch(e){why=e&&e.message||'unreachable';}
-  if(!hits.length){try{hits=await claudeSearch(q); via='Claude (typical '+(shop?shop.name+' ':'')+'values, check against the pack)';}catch(e){ai=e&&e.code||'failed';}}
+  try{if(shop&&shop.rest) throw new Error('skip'); hits=await offSearch(q,shop); via='Open Food Facts'+(shop?', '+shop.name+' only':'');}catch(e){why=e&&e.message||'unreachable';}
+  if(!hits.length){try{hits=await claudeSearch(q); via=shop&&shop.rest?'Claude\u2019s knowledge of chain menus (check the current menu)':'Claude (typical '+(shop?shop.name+' ':'')+'values, check against the pack)';}catch(e){ai=e&&e.code||'failed';}}
   const online=hits.length>0; if(!online){hits=localSearch(q); via='your saved and built-in foods';}
-  const reason=why==='unreachable'?'The product database could not be reached'+(IN_VIEWER?' from inside Claude':'')+'.':'No '+(shop?shop.name+' ':'')+'product matched online.';
+  const reason=why==='skip'?'Chain menus are looked up with Claude, which '+(ai==='no_key'?'needs an API key under Set.':'did not answer.'):why==='unreachable'?'The product database could not be reached'+(IN_VIEWER?' from inside Claude':'')+'.':'No '+(shop?shop.name+' ':'')+'product matched online.';
   if(hits.length){showLive(hits); st.className='status ok'; st.textContent=online?hits.length+' result'+(hits.length>1?'s':'')+' from '+via+'. Pick one, then set portions.':reason+' Showing '+hits.length+' from '+via+'.';}
   else{st.className='status err'; st.textContent=reason+' Nothing saved or built in matches “'+q+'” either. Try a simpler name'+(ai==='no_key'&&!IN_VIEWER?', or add an API key under Set for typical values of any food.':', or enter the values by hand.');}
   btn.disabled=false;};
 
 /* ---------- photo a label → Claude reads it ---------- */
-const PROMPT='The photo is a food packet, ideally its nutrition label, or otherwise a food item or plate of food. Reply with only one JSON object: {"name": short product or food name, "serving": what one serving is e.g. "1 pot (150 g)" or "100 g", "kcal": kcal per serving, "protein": g per serving, "carbs": g per serving, "fat": g per serving, "source": "label" or "estimate", "note": one short remark, e.g. which column you used}. UK labels show per 100 g and often per serving: use the per-serving column when present, else use per 100 g and set serving to "100 g". Use kcal, never kJ. Numeric fields are plain numbers. If no food is visible, reply {"error": "what you see instead"}.';
+const PROMPT='The photo is a food packet, ideally its nutrition label, or otherwise a food item or plate of food. Reply with only one JSON object: {"name": short product or food name, "kcal_100g": kcal per 100 g or 100 ml, "protein_100g": g, "carbs_100g": g, "fat_100g": g, "serving_g": grams or ml in one serving if printed, "pack_g": net weight of the whole pack in grams or ml if printed, "serving": what one serving is e.g. "1 pot (150 g)", "kcal": kcal per serving, "protein": g per serving, "carbs": g per serving, "fat": g per serving, "source": "label" or "estimate", "note": one short remark}. Fill the per-100 g fields whenever the label has that column. Fill the per-serving fields when the label has that column, or when estimating a food or plate with no label. Use kcal, never kJ. Numeric fields are plain numbers; leave out any field you cannot read. If no food is visible, reply {"error": "what you see instead"}.';
 function parseLoose(t){try{return JSON.parse(t);}catch(e){} const m=t.match(/```(?:json)?\s*([\s\S]*?)```/); if(m){try{return JSON.parse(m[1]);}catch(e){}} const a=t.indexOf('{'),b=t.lastIndexOf('}'); if(a>=0&&b>a){try{return JSON.parse(t.slice(a,b+1));}catch(e){}} throw {code:'invalid_json',message:'no JSON in reply'};}
 function shrink(file){return new Promise((res,rej)=>{const img=new Image(); const url=URL.createObjectURL(file); img.onload=()=>{URL.revokeObjectURL(url); const max=1568; let w=img.width,h=img.height; const s=Math.min(1,max/Math.max(w,h)); w=Math.round(w*s); h=Math.round(h*s); const c=document.createElement('canvas'); c.width=w;c.height=h; c.getContext('2d').drawImage(img,0,0,w,h); const data=c.toDataURL('image/jpeg',0.85); res(data.split(',')[1]);}; img.onerror=()=>{URL.revokeObjectURL(url);rej({code:'image_rejected',message:'could not decode image'});}; img.src=url;});}
 async function readViaApi(file,prompt,maxTok){const key=state.settings.apiKey; if(!key) throw {code:'no_key'};
@@ -742,13 +763,12 @@ async function readViaApi(file,prompt,maxTok){const key=state.settings.apiKey; i
     const file=inp.files&&inp.files[0]; if(!file) return;
     btn.style.pointerEvents='none'; btn.style.opacity='.5'; st.hidden=false; st.className='status'; st.textContent='Reading the label…';
     try{
-      const r=viewerSample?await viewerSample.json(PROMPT,{images:[file]}):await readViaApi(file);
+      const r=viewerSample?await viewerSample.json(PROMPT,{images:[file]}):await readViaApi(file,PROMPT,600);
       if(!r||r.error) throw {code:'nofood',message:r&&r.error||'nothing readable'};
-      const srv=r.serving?' ('+String(r.serving)+')':'';
-      fName.value=String(r.name||'Unnamed food')+srv; $('#fKcal').value=Math.round(Number(r.kcal)||0);
-      $('#fP').value=Number(r.protein)||0; $('#fC').value=Number(r.carbs)||0; $('#fF').value=Number(r.fat)||0; $('#fQty').value=1; sl.classList.remove('on');
-      st.className='status ok'; st.textContent=(r.source==='estimate'?'Estimated from the photo — check the numbers. ':'Read from the label. ')+(r.note?String(r.note)+' ':'')+'Set portions, then Add.';
-      $('#fQty').focus();
+      const per=Number(r.kcal_100g)>0, nm=String(r.name||'Unnamed food');
+      fillFood(per?{name:nm+' (100 g)',kcal:Math.round(Number(r.kcal_100g)),p:Number(r.protein_100g)||0,c:Number(r.carbs_100g)||0,f:Number(r.fat_100g)||0,grams:Number(r.serving_g)||0,pack:Number(r.pack_g)||0}
+                  :{name:nm+(r.serving?' ('+String(r.serving)+')':''),kcal:Math.round(Number(r.kcal)||0),p:Number(r.protein)||0,c:Number(r.carbs)||0,f:Number(r.fat)||0});
+      st.className='status ok'; st.textContent=(r.source==='estimate'?'Estimated from the photo, so check the numbers. ':'Read from the label. ')+(r.note?String(r.note)+' ':'')+(per?'Values are per 100 g'+(Number(r.serving_g)?', set to one '+Number(r.serving_g)+' g serving':'')+'. Change the grams, or use a hand measure or pack fraction, then Add.':'Set portions, then Add.');
     }catch(e){
       st.className='status err'; const c=e&&e.code;
       st.textContent=c==='no_key'?'Add your Anthropic API key under Set to enable label reading.':
@@ -765,36 +785,43 @@ async function readViaApi(file,prompt,maxTok){const key=state.settings.apiKey; i
 
 /* ---------- photo a meal → itemised calorie estimate ---------- */
 const MEAL_PROMPT='The photo or photos show one meal or plate of food; several photos are the same meal from different angles, so use them together to judge height and depth. If a bank card (85.6 by 54 mm), a fork (about 19 cm) or a hand is in shot, use it as a scale reference. Estimate the energy content. Identify each distinct component, estimate its portion in grams from visual cues (plate and cutlery size, depth, typical UK servings), and include cooking fats, dressings and sauces you can reasonably infer. Reply with only one JSON object: {"items": [{"name": short food name, "grams": estimated grams, "kcal": number, "protein": g, "carbs": g, "fat": g}], "low": plausible lower bound for total kcal, "high": plausible upper bound for total kcal, "note": one short sentence on the biggest uncertainty, "questions": [up to 3 of {"q": short question, "options": [2 to 4 short answers]}]}. Ask a question only where the answer would move the total by more than about 10 percent (cooking fat, portion size, a hidden ingredient, what a sauce or drink is); otherwise give an empty list. Numbers are plain numbers. If no food is visible, reply {"error": "what you see instead"}.';
-async function mealAsk(file,hint,answers){const prompt=MEAL_PROMPT+savedHint()+(answers?' The person has given these details: '+answers.slice(0,800)+' Use them and return an empty questions list.':'')+(hint?' The person describes it as: "'+hint.replace(/"/g,"'").slice(0,200)+'".':'');
+async function mealAsk(file,hint,answers){const prompt=MEAL_PROMPT+wareHint()+savedHint()+(answers?' The person has given these details: '+answers.slice(0,800)+' Use them and return an empty questions list.':'')+(hint?' The person describes it as: "'+hint.replace(/"/g,"'").slice(0,200)+'".':'');
   let s=null; try{if(window.claude&&typeof claude.use==='function') s=await claude.use('sample');}catch(e){}
   if(s){const lim=await s.limits().catch(()=>null); return s.json(prompt,{images:file.slice(0,lim&&lim.images?lim.images.maxCount:1)});}
   if(typeof readViaApi==='function') return readViaApi(file,prompt,1200);
   throw {code:'no_key'};}
-function showMeal(r,refine,kind){const box=$('#mealPanel');
-  const items=(Array.isArray(r.items)?r.items:[]).map(x=>({name:String(x.name||'Item')+(Number(x.grams)?' (~'+Math.round(Number(x.grams))+' g)':''),kcal:Math.round(Number(x.kcal)||0),p:Number(x.protein)||0,c:Number(x.carbs)||0,f:Number(x.fat)||0})).filter(x=>x.kcal>0);
+function calibFactor(){const c=state.calib||[]; if(c.length<5) return 1; const rs=c.map(x=>x.a/x.e).filter(x=>x>0).sort((a,b)=>a-b); return rs.length?Math.min(1.6,Math.max(0.6,rs[Math.floor(rs.length/2)])):1;}
+function wareHint(){const w=state.settings.ware||{}, b=[]; if(w.plate) b.push('dinner plate '+w.plate+' cm across'); if(w.bowl||w.bowlMl) b.push('bowl '+(w.bowl?w.bowl+' cm across':'')+(w.bowlMl?' holding '+w.bowlMl+' ml to the brim':'')); if(w.mug) b.push('mug holding '+w.mug+' ml'); return b.length?' The person’s own crockery: '+b.join('; ')+'. If the food is on or in one of these, use it as the scale.':'';}
+function showMeal(r,refine,kind){const box=$('#mealPanel'); const photo=kind!=='text'; const cf=photo?calibFactor():1;
+  const items=(Array.isArray(r.items)?r.items:[]).map(x=>{const g0=Math.round(Number(x.grams)||0), k0=Math.round(Number(x.kcal)||0); return {name:String(x.name||'Item'),g0,g:Math.round(g0*cf),kcal:Math.round(k0*cf),p:(Number(x.protein)||0)*cf,c:(Number(x.carbs)||0)*cf,f:(Number(x.fat)||0)*cf};}).filter(x=>x.kcal>0);
   if(!items.length) throw {code:'nofood',message:'no food items recognised'};
+  const GR='display:grid;grid-template-columns:auto 1fr 62px 70px;gap:6px;align-items:center';
   let h='<div class="sec-head" style="margin-bottom:4px"><span class="eyebrow">'+(kind==='text'?'From your description':'Meal estimate')+'</span><span class="num" id="mealTotal" style="color:var(--in);font-weight:600"></span></div>';
-  items.forEach((x,i)=>{h+='<div style="display:grid;grid-template-columns:auto 1fr 84px;gap:8px;align-items:center;padding:6px 0;border-bottom:1px dashed var(--rule)"><input type="checkbox" id="mealC'+i+'" checked><label for="mealC'+i+'" style="min-width:0;overflow-wrap:anywhere;color:var(--ink)">'+esc(x.name)+'</label><input type="number" id="mealK'+i+'" value="'+x.kcal+'" min="0" step="5" aria-label="kcal"></div>';});
-  const lo=Number(r.low),hi=Number(r.high);
-  h+='<p style="margin:8px 0">'+(lo>0&&hi>lo?'Plausible range '+fmt(lo)+'–'+fmt(hi)+' kcal. ':'')+(r.note?esc(String(r.note))+' ':'')+(kind==='text'?'Typical values for what you described':'Photo estimates can be off by a quarter or more')+'; change any figure you know better.</p>';
+  h+='<div style="'+GR+'"><span></span><span></span><span class="eyebrow" style="font-size:11px">grams</span><span class="eyebrow" style="font-size:11px">kcal</span></div>';
+  items.forEach((x,i)=>{h+='<div style="'+GR+';padding:6px 0;border-bottom:1px dashed var(--rule)"><input type="checkbox" id="mealC'+i+'" checked><label for="mealC'+i+'" style="min-width:0;overflow-wrap:anywhere;color:var(--ink)">'+esc(x.name)+'</label>'+(x.g?'<input type="number" id="mealG'+i+'" value="'+x.g+'" min="0" step="5" aria-label="grams" style="padding:8px 4px">':'<span></span>')+'<input type="number" id="mealK'+i+'" value="'+x.kcal+'" min="0" step="5" aria-label="kcal" style="padding:8px 4px"></div>';});
+  const lo=Number(r.low)*cf,hi=Number(r.high)*cf;
+  h+='<p style="margin:8px 0">'+(lo>0&&hi>lo?'Plausible range '+fmt(lo)+'–'+fmt(hi)+' kcal. ':'')+(r.note?esc(String(r.note))+' ':'')+(kind==='text'?'Typical values for what you described':'Photo estimates can be off by a quarter or more')+'; change any figure you know better.'+(photo?' Type real grams for anything you weigh and Stoke learns from the difference.':'')+(cf!==1?' Adjusted by '+Math.round(Math.abs(cf-1)*100)+'% '+(cf>1?'up':'down')+' from your weighed corrections.':'')+'</p>';
   const qs=(refine&&Array.isArray(r.questions)?r.questions:[]).slice(0,3).map(q=>({q:String(q&&q.q||''),o:(Array.isArray(q&&q.options)?q.options:[]).slice(0,4).map(String)})).filter(q=>q.q);
   const ql='font-family:var(--body);font-size:14px;letter-spacing:0;text-transform:none;color:var(--ink);font-weight:500';
   qs.forEach((q,i)=>{h+='<div class="field" style="margin:8px 0"><label for="mealQ'+i+'" style="'+ql+'">'+esc(q.q)+'</label><select id="mealQ'+i+'"><option value="">Not sure</option>'+q.o.map(o=>'<option>'+esc(o)+'</option>').join('')+'</select></div>';});
-  if(refine) h+='<div class="field" style="margin:8px 0"><label for="mealMore" style="'+ql+'">Anything to add?</label><input type="text" id="mealMore" placeholder="e.g. fried in butter, large bowl, ate half"></div>';
-  h+='<div class="row">'+(refine?'<button type="button" class="btn sm" id="mealRefine">Update estimate</button>':'')+(kind==='photo+'?'<label class="btn ghost sm" for="mealFile2" style="cursor:pointer">Add side photo</label>':'')+'<button type="button" class="btn in sm" id="mealLog">Log selected</button><button type="button" class="btn ghost sm" id="mealDrop">Dismiss</button></div>';
+  if(refine) h+='<div class="field" style="margin:8px 0"><label for="mealFat" style="'+ql+'">Cooked in?</label><select id="mealFat"><option value="">Not sure</option><option>no added fat</option><option>oil spray or a teaspoon of oil</option><option>a tablespoon of oil</option><option>butter</option><option>deep fried</option><option>nothing, it is not cooked</option></select></div><div class="field" style="margin:8px 0"><label for="mealMore" style="'+ql+'">Anything to add?</label><input type="text" id="mealMore" placeholder="e.g. large bowl, ate half, extra cheese"></div>';
+  h+='<div class="row">'+(refine?'<button type="button" class="btn sm" id="mealRefine">Update estimate</button>':'')+'<button type="button" class="btn in sm" id="mealLog">Log selected</button>'+(kind==='photo+'?'<label class="btn ghost sm" for="mealFile2" style="cursor:pointer">Add side photo</label><label class="btn ghost sm" for="mealFile3" style="cursor:pointer">Leftovers photo</label>':'')+'<button type="button" class="btn ghost sm" id="mealDrop">Dismiss</button></div>';
   box.innerHTML=h; box.hidden=false;
   const tot=()=>{let t=0; items.forEach((x,i)=>{if($('#mealC'+i).checked) t+=Number($('#mealK'+i).value)||0;}); $('#mealTotal').textContent=fmt(t)+' kcal';};
+  items.forEach((x,i)=>{const ge=$('#mealG'+i); if(ge) ge.addEventListener('input',()=>{const g=Number(ge.value)||0; if(g>0&&x.g) $('#mealK'+i).value=Math.round(x.kcal*g/x.g); tot();});});
   box.querySelectorAll('input').forEach(el=>el.addEventListener('input',tot)); tot();
-  if(refine) $('#mealRefine').onclick=()=>{const more=$('#mealMore').value.trim(); const a=(qs.map((q,i)=>{const v=$('#mealQ'+i).value; return v?q.q+' '+v+'.':'';}).join(' ')+(more?' Also: '+more+'.':'')).trim(); if(!a){$('#mealMore').focus();return;} refine(a);};
+  if(refine) $('#mealRefine').onclick=()=>{const more=$('#mealMore').value.trim(), fat=$('#mealFat').value; const a=(qs.map((q,i)=>{const v=$('#mealQ'+i).value; return v?q.q+' '+v+'.':'';}).join(' ')+(fat?' Cooking fat: '+fat+'.':'')+(more?' Also: '+more+'.':'')).trim(); if(!a){$('#mealMore').focus();return;} refine(a);};
   $('#mealDrop').onclick=()=>{box.hidden=true; box.innerHTML=''; $('#labelStatus').hidden=true;};
-  $('#mealLog').onclick=()=>{let n=0,t=0; const d=dayRec(cur); items.forEach((x,i)=>{if(!$('#mealC'+i).checked) return; const k=Math.round(Number($('#mealK'+i).value)||0); const s=x.kcal?k/x.kcal:1;
-      d.food.push({id:Date.now()+'m'+i,name:x.name,kcal:k,p:Math.round(x.p*s*10)/10,c:Math.round(x.c*s*10)/10,f:Math.round(x.f*s*10)/10,qty:1,h:new Date().getHours()}); n++; t+=k;});
+  $('#mealLog').onclick=()=>{let n=0,t=0; const d=dayRec(cur); items.forEach((x,i)=>{if(!$('#mealC'+i).checked) return; const k=Math.round(Number($('#mealK'+i).value)||0); const s=x.kcal?k/x.kcal:1; const ge=$('#mealG'+i), g=ge?Math.round(Number(ge.value)||0):0;
+      if(photo&&x.g0>0&&g>0&&g!==x.g) state.calib=(state.calib||[]).concat({e:x.g0,a:g}).slice(-50);
+      d.food.push({id:Date.now()+'m'+i,name:x.name+(g?' ('+g+' g)':''),kcal:k,p:Math.round(x.p*s*10)/10,c:Math.round(x.c*s*10)/10,f:Math.round(x.f*s*10)/10,qty:1,h:new Date().getHours()}); n++; t+=k;});
     if(!n) return; save(); box.hidden=true; box.innerHTML=''; $('#labelStatus').hidden=true; render(); toast('Logged '+n+' item'+(n>1?'s':'')+' · '+fmt(t)+' kcal');};}
+
 (()=>{const inp=$('#mealFile'), st=$('#labelStatus'), btn=$('#mealBtn'); if(!inp) return;
   let last=null; const run=async(file,hint,answers)=>{last={file,hint,answers};
     btn.style.pointerEvents='none'; btn.style.opacity='.5'; st.hidden=false; st.className='status'; st.textContent=(answers?'Updating the estimate':'Estimating the meal')+'… this can take up to a minute.';
     try{const r=await mealAsk(file,hint,answers); if(!r||r.error) throw {code:'nofood',message:r&&r.error||'nothing recognisable'};
-      showMeal(r,a=>run(file,hint,(answers?answers+' ':'')+a),file.length<3?'photo+':'photo'); st.className='status ok'; st.textContent=answers?'Estimate updated with your details.':'Estimated from '+(file.length>1?file.length+' photos':'the photo')+'. A bank card or fork in shot, or a side photo, sharpens portions.';
+      showMeal(r,a=>run(file,hint,(answers?answers+' ':'')+a),file.length<3?'photo+':'photo'); st.className='status ok'; st.textContent=answers?'Estimate updated with your details.':'Estimated from '+(file.length>1?file.length+' photos':'the photo')+'. Your plate, a bank card or a fork in shot, or a side photo, sharpens portions.';
     }catch(e){st.className='status err'; const c=e&&e.code;
       st.textContent=c==='no_key'?'Add your Anthropic API key under Set to enable meal photos.':c==='bad_key'?'API key rejected; check it under Set.':
         c==='not_granted'||c==='sampling_disabled'?'Photo estimates are not allowed on this account; type the values instead.':
@@ -804,7 +831,9 @@ function showMeal(r,refine,kind){const box=$('#mealPanel');
     finally{btn.style.pointerEvents='';btn.style.opacity='';inp.value='';}
   };
   inp.addEventListener('change',()=>{const fs=[...(inp.files||[])].slice(0,3); if(fs.length) run(fs,fName.value.trim());});
-  $('#mealFile2').addEventListener('change',e=>{const f=e.target.files&&e.target.files[0]; e.target.value=''; if(f&&last) run(last.file.concat(f).slice(0,3),last.hint,last.answers);});})();
+  $('#mealFile2').addEventListener('change',e=>{const f=e.target.files&&e.target.files[0]; e.target.value=''; if(f&&last) run(last.file.concat(f).slice(0,3),last.hint,last.answers);});
+  $('#mealFile3').addEventListener('change',e=>{const f=e.target.files&&e.target.files[0]; e.target.value=''; if(f&&last) run(last.file.slice(0,2).concat(f),last.hint,(last.answers?last.answers+' ':'')+'The final photo shows what was left on the plate after eating. Report only what was eaten: the earlier photos minus these leftovers.');});})();
+
 
 /* ---------- library ---------- */
 function renderLib(){const q=$('#libSearch').value.trim().toLowerCase(); const list=$('#libList'); list.innerHTML='';
@@ -881,7 +910,7 @@ async function visionJSON(file,prompt,maxTok){const s=await viewerSample(); if(s
 function aiErr(e){const c=e&&e.code; return c==='no_key'?'Add your Anthropic API key under Set to use this.':c==='bad_key'?'API key rejected; check it under Set.':c==='not_granted'||c==='sampling_disabled'?'Claude is not allowed for this page on this account.':c==='rate_limited'?'Too many requests; try again in a minute.':c==='nofood'?'Nothing to log in that ('+e.message+').':c==='invalid_json'?'Could not turn that into numbers; try rewording.':'Could not do that ('+(e&&e.message||'offline or blocked')+').';}
 
 /* ---------- say it or type it ---------- */
-const SAY_PROMPT='The person says what they ate or drank: "{T}". Split it into separate items. Use the amounts given, otherwise typical UK portions. Reply with only one JSON object: {"items": [{"name": short food name, "grams": grams or ml, "kcal": number, "protein": g, "carbs": g, "fat": g}], "low": plausible lower bound for total kcal, "high": plausible upper bound, "note": one short sentence on the biggest uncertainty, "questions": [up to 2 of {"q": short question, "options": [2 to 4 short answers]}]}. Ask a question only where the answer would move the total by more than about 10 percent; otherwise give an empty list. Numbers are plain numbers. If it is not food or drink, reply {"error": "why"}.';
+const SAY_PROMPT='The person says what they ate or drank: "{T}". Split it into separate items. Use the amounts given, otherwise typical UK portions. Hand measures: a fist is about 175 g of cooked rice, pasta, potato or vegetables; a palm is about 100 g of cooked meat or fish; a cupped handful is about 30 g of nuts or dry snacks; a thumb is about 15 g of butter, oil, cheese or nut butter. Reply with only one JSON object: {"items": [{"name": short food name, "grams": grams or ml, "kcal": number, "protein": g, "carbs": g, "fat": g}], "low": plausible lower bound for total kcal, "high": plausible upper bound, "note": one short sentence on the biggest uncertainty, "questions": [up to 2 of {"q": short question, "options": [2 to 4 short answers]}]}. Ask a question only where the answer would move the total by more than about 10 percent; otherwise give an empty list. Numbers are plain numbers. If it is not food or drink, reply {"error": "why"}.';
 async function runSay(text,answers){const st=$('#labelStatus'), btn=$('#sayBtn'); btn.disabled=true; st.hidden=false; st.className='status'; st.textContent=answers?'Updating…':'Working out what that is…';
   try{const safe=text.replace(/"/g,"'").slice(0,500); const r=await textJSON(SAY_PROMPT.replace('{T}',()=>safe)+savedHint()+(answers?' Extra details from the person: '+answers.slice(0,600)+' Use them and return an empty questions list.':''),900);
     if(!r||r.error) throw {code:'nofood',message:r&&r.error||'nothing recognisable'};
@@ -892,13 +921,18 @@ $('#sayBtn').onclick=()=>{const t=$('#sayText').value.trim(); if(t.length<3){$('
 $('#sayText').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault(); $('#sayBtn').click();}});
 
 /* ---------- barcode and weighed grams ---------- */
-function syncGrams(){const on=/\(100 ?g\)\s*$/i.test(fName.value); $('#fGramsWrap').hidden=!on; if(!on) $('#fGrams').value='';}
+function syncGrams(){const on=/\(100 ?g\)\s*$/i.test(fName.value); document.querySelectorAll('.per100').forEach(el=>{el.hidden=!on;}); if(!on){$('#fGrams').value=''; $('#fPack').value=''; $('#fMeas').value=''; $('#fFrac').value='';}}
+function setGrams(g){g=Math.round(g); if(g>0){$('#fGrams').value=g; $('#fQty').value=g/100;}}
+function fillFood(f){fName.value=f.name; $('#fKcal').value=f.kcal; $('#fP').value=f.p||0; $('#fC').value=f.c||0; $('#fF').value=f.f||0; $('#fQty').value=1; sl.classList.remove('on'); syncGrams();
+  if(!$('#fGramsWrap').hidden){if(f.pack) $('#fPack').value=f.pack; if(f.grams) setGrams(f.grams); $('#fGrams').focus();} else $('#fQty').focus();}
+const meas=()=>{const u=num($('#fMeas').value), n=num($('#fMeasN').value); if(u&&n) setGrams(u*n);}; $('#fMeas').onchange=meas; $('#fMeasN').oninput=meas;
+const frac=()=>{const pk=num($('#fPack').value), fr=num($('#fFrac').value); if(pk&&fr) setGrams(pk*fr);}; $('#fFrac').onchange=frac; $('#fPack').oninput=frac;
 fName.addEventListener('input',syncGrams); $('#fQty').addEventListener('focus',syncGrams);
-$('#fGrams').oninput=e=>{const g=num(e.target.value); if(g!=null&&g>0) $('#fQty').value=Math.round(g)/100;};
-function offMap(p){const n=p.nutriments||{}; const perS=n['energy-kcal_serving']!=null; const k=perS?n['energy-kcal_serving']:n['energy-kcal_100g']; if(k==null) return null;
-  const g=x=>{const v=perS?n[x+'_serving']:n[x+'_100g']; return v!=null?Math.round(v*10)/10:0;}; const br=Array.isArray(p.brands)?String(p.brands[0]||''):(p.brands?String(p.brands).split(',')[0].trim():''); let pn=p.product_name; if(pn&&typeof pn==='object') pn=pn.en||pn.main||Object.values(pn)[0]; const nm=(pn&&br&&String(pn).toLowerCase().startsWith(br.toLowerCase())?[pn]:[br,pn||'']).filter(Boolean).join(' ')||'Product';
-  return {name:nm+(perS&&p.serving_size?' ('+p.serving_size+')':' (100 g)'),kcal:Math.round(k),p:g('proteins'),c:g('carbohydrates'),f:g('fat'),brand:br+' '+(Array.isArray(p.stores)?p.stores.join(' '):(p.stores||''))};}
-async function offCode(code){const r=await fetch('https://world.openfoodfacts.org/api/v2/product/'+code+'.json?fields=product_name,brands,serving_size,nutriments'); if(r.status===404) return null; if(!r.ok) throw new Error('HTTP '+r.status); const j=await r.json(); return j&&j.product?offMap(j.product):null;}
+$('#fGrams').oninput=e=>{const g=num(e.target.value); if(g!=null&&g>0) $('#fQty').value=Math.round(g)/100; $('#fMeas').value=''; $('#fFrac').value='';};
+function offMap(p){const n=p.nutriments||{}; const k100=n['energy-kcal_100g'], kS=n['energy-kcal_serving']; if(k100==null&&kS==null) return null; const per=k100!=null;
+  const g=x=>{const v=per?n[x+'_100g']:n[x+'_serving']; return v!=null?Math.round(v*10)/10:0;}; const br=Array.isArray(p.brands)?String(p.brands[0]||''):(p.brands?String(p.brands).split(',')[0].trim():''); let pn=p.product_name; if(pn&&typeof pn==='object') pn=pn.en||pn.main||Object.values(pn)[0]; const nm=(pn&&br&&String(pn).toLowerCase().startsWith(br.toLowerCase())?[pn]:[br,pn||'']).filter(Boolean).join(' ')||'Product';
+  return {name:nm+(per?' (100 g)':(p.serving_size?' ('+p.serving_size+')':'')),kcal:Math.round(per?k100:kS),p:g('proteins'),c:g('carbohydrates'),f:g('fat'),grams:per?Math.round(Number(p.serving_quantity)||0):0,pack:Math.round(Number(p.product_quantity)||0),brand:br+' '+(Array.isArray(p.stores)?p.stores.join(' '):(p.stores||''))};}
+async function offCode(code){const r=await fetch('https://world.openfoodfacts.org/api/v2/product/'+code+'.json?fields=product_name,brands,serving_size,serving_quantity,product_quantity,nutriments'); if(r.status===404) return null; if(!r.ok) throw new Error('HTTP '+r.status); const j=await r.json(); return j&&j.product?offMap(j.product):null;}
 let zxP=null; function loadZX(){return zxP||(zxP=new Promise((res,rej)=>{const s=document.createElement('script'); s.src='zxing.min.js'; s.onload=res; s.onerror=()=>{zxP=null; rej(new Error('scanner did not load'));}; document.head.appendChild(s);}));}
 function shrinkURL(file,max){return new Promise((res,rej)=>{const img=new Image(); const u=URL.createObjectURL(file); img.onload=()=>{URL.revokeObjectURL(u); const s=Math.min(1,max/Math.max(img.width,img.height)); const c=document.createElement('canvas'); c.width=Math.round(img.width*s); c.height=Math.round(img.height*s); c.getContext('2d').drawImage(img,0,0,c.width,c.height); res(c.toDataURL('image/jpeg',0.92));}; img.onerror=()=>{URL.revokeObjectURL(u); rej(new Error('bad image'));}; img.src=u;});}
 async function decodeBar(file){
@@ -911,8 +945,7 @@ function savedHint(){const l=state.library.filter(f=>f.name&&f.kcal>=0).sort((a,
 async function barLookup(code){const st=$('#labelStatus'); st.hidden=false; st.className='status'; st.textContent='Looking up '+code+'…';
   const mine=state.library.find(x=>x.code===code); pendCode={code,t:Date.now()};
   try{const f=mine?{name:mine.name,kcal:mine.kcal,p:mine.p,c:mine.c,f:mine.f}:await offCode(code); if(!f){st.className='status err'; st.textContent='Barcode '+code+' is not in the database. Use Label photo or type the values, then Add, and Stoke will remember it for this barcode.'; return;}
-    fName.value=f.name; $('#fKcal').value=f.kcal; $('#fP').value=f.p; $('#fC').value=f.c; $('#fF').value=f.f; $('#fQty').value=1; sl.classList.remove('on'); syncGrams();
-    st.className='status ok'; st.textContent=(mine?'From your saved foods: ':'Found ')+f.name+'. '+($('#fGramsWrap').hidden?'Set portions':'Enter weighed grams or portions')+', then Add.'; (($('#fGramsWrap').hidden)?$('#fQty'):$('#fGrams')).focus();
+    fillFood(f); st.className='status ok'; st.textContent=(mine?'From your saved foods: ':'Found ')+f.name+'. '+($('#fGramsWrap').hidden?'Set portions':'Set the grams, or use a hand measure or pack fraction')+', then Add.';
   }catch(e){st.className='status err'; st.textContent='Could not reach the product database ('+(e&&e.message||'offline')+'). Use Label photo or type the values, then Add, and Stoke will remember it for this barcode.';}}
 $('#barFile').addEventListener('change',async e=>{const inp=e.target, file=inp.files&&inp.files[0]; if(!file) return; const st=$('#labelStatus'), btn=$('#barBtn');
   btn.style.pointerEvents='none'; btn.style.opacity='.5'; st.hidden=false; st.className='status'; st.textContent='Reading the barcode…';
@@ -944,7 +977,7 @@ function renderMore(){
   else{chip.textContent='needs data'; chip.className='chip'; use.hidden=true; note.textContent='Needs 4 weigh-ins spread over at least two weeks and 10 logged days in the last four weeks. So far: '+E.w+' weigh-in'+(E.w===1?'':'s')+', '+E.logged+' logged day'+(E.logged===1?'':'s')+'. Weigh at the same time of day for a cleaner trend.';}
   const m=MAC(); ['p','c','f'].forEach(k=>{const el=$('#mt_'+k); if(document.activeElement!==el) el.value=m[k]||'';});
   const kc=m.p*4+m.c*4+m.f*9; $('#mtNote').textContent=kc?'These add up to '+fmt(kc)+' kcal, against today’s target of '+fmt(targetFor(cur,burnFor(cur).kcal))+'. The Day tab shows progress against each. Tap any logged food to change its macros.':'Leave blank for no target. Tap any logged food on the Day tab to change its macros.';
-  if(document.activeElement!==$('#shop')) $('#shop').value=state.settings.shop||''; $('#sEat').value=eatBack(); $('#keyCard').hidden=IN_VIEWER; syncGrams(); renderEx(); renderQuick(); const n=Object.values(state.days).reduce((a,d)=>a+d.food.length,0); if(state.fast&&foodN!=null&&n>foodN) endFast(true); foodN=n; renderFast();}
+  if(document.activeElement!==$('#shop')) $('#shop').value=state.settings.shop||''; $('#sEat').value=eatBack(); $('#keyCard').hidden=IN_VIEWER; syncGrams(); renderEx(); renderQuick(); renderWare(); const n=Object.values(state.days).reduce((a,d)=>a+d.food.length,0); if(state.fast&&foodN!=null&&n>foodN) endFast(true); foodN=n; renderFast();}
 
 $('#shop').onchange=e=>{state.settings.shop=e.target.value; save();};
 
@@ -954,11 +987,22 @@ const hm=ms=>{const m=Math.max(0,Math.floor(ms/60000)); return Math.floor(m/60)+
 const when=t=>new Date(t).toLocaleString('en-GB',{weekday:'short',hour:'2-digit',minute:'2-digit'});
 function endFast(auto){const f=state.fast; if(!f) return; const e=Date.now(); state.fasts=(state.fasts||[]).concat({s:f.start,e}).slice(-30); state.fast=null; save(); toast((auto?'Food logged, fast ended · ':'Fast ended · ')+hm(e-f.start));}
 function renderFast(){const f=state.fast, st=$('#fastState'), sub=$('#fastSub'), btn=$('#fastBtn'); $('#fastEdit').hidden=!f;
+  const nt=(state.settings.fastNote||'').trim(), nb=$('#fastNote'); nb.hidden=!(f&&nt); nb.textContent=nt; if(document.activeElement!==$('#fastNoteIn')) $('#fastNoteIn').value=state.settings.fastNote||''; if(document.activeElement!==$('#fastWatch')) $('#fastWatch').value=state.settings.fastWatch||'';
   if(f){st.textContent=hm(Date.now()-f.start); sub.textContent='since '+when(f.start); btn.textContent='End fast'; btn.className='btn in sm'; const el=$('#fastStart'); if(document.activeElement!==el) el.value=new Date(f.start-new Date(f.start).getTimezoneOffset()*60000).toISOString().slice(0,16);}
   else{st.textContent='Not fasting'; const l=(state.fasts||[]).slice(-1)[0]; sub.textContent=l?'last fast '+hm(l.e-l.s)+', ended '+when(l.e):''; btn.textContent='Start fast'; btn.className='btn sm';}}
 $('#fastBtn').onclick=()=>{if(state.fast) endFast(false); else {state.fast={start:Date.now()}; save(); toast('Fast started');} renderFast();};
 $('#fastStart').onchange=e=>{const t=new Date(e.target.value).getTime(); if(state.fast&&t&&t<=Date.now()){state.fast.start=t; save();} renderFast();};
 setInterval(()=>{if(state.fast) renderFast();},30000);
+$('#fastNoteIn').onchange=e=>{state.settings.fastNote=e.target.value.trim(); save(); renderFast();};
+$('#fastWatch').onchange=e=>{state.settings.fastWatch=e.target.value.trim(); save();};
+function fastNudge(text){if(!state.fast) return; const ws=(state.settings.fastWatch||'').toLowerCase().split(',').map(s=>s.trim()).filter(Boolean), t=String(text).toLowerCase(); if(!ws.some(w=>t.includes(w))) return;
+  const st=$('#labelStatus'); st.hidden=false; st.className='status'; st.textContent='Fasting for '+hm(Date.now()-state.fast.start)+'. '+((state.settings.fastNote||'').trim()||'You asked to be reminded about this.')+' If you have already eaten it, log it anyway so the numbers stay true.';}
+fName.addEventListener('input',()=>fastNudge(fName.value)); $('#sayText').addEventListener('input',e=>fastNudge(e.target.value));
+const WARE=()=>state.settings.ware||(state.settings.ware={});
+['plate','bowl','bowlMl','mug'].forEach(k=>{$('#wr_'+k).onchange=e=>{const v=num(e.target.value); if(v>0) WARE()[k]=v; else delete WARE()[k]; save(); toast('Saved');};});
+$('#calibReset').onclick=()=>{state.calib=[]; save(); render(); toast('Photo correction reset');};
+function renderWare(){const w=WARE(); ['plate','bowl','bowlMl','mug'].forEach(k=>{const el=$('#wr_'+k); if(document.activeElement!==el) el.value=w[k]||'';});
+  const n=(state.calib||[]).length, cf=calibFactor(); $('#calibReset').hidden=!n; $('#calibNote').textContent=n>=5?'Photo correction: your weighed portions run '+Math.round(Math.abs(cf-1)*100)+'% '+(cf>=1?'above':'below')+' the estimates ('+n+' items), so new estimates are adjusted.':n?n+' of 5 weighed corrections so far. Photo estimates adjust once there are five.':'When you type a weighed figure into a meal estimate, Stoke learns how far off its guesses run.';}
 
 /* ---------- nav ---------- */
 const VIEWS=['day','week','sources','foods','settings'];
