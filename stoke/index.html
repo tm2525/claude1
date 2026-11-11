@@ -60,13 +60,13 @@ header{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var
 .datenav .d.today{color:var(--in)}
 
 /* balance strip */
-.balance{display:grid;grid-template-columns:1fr auto 1fr;gap:8px;align-items:end;margin-top:10px}
+.balance{display:grid;grid-template-columns:1fr auto 1fr;gap:8px;align-items:start;margin-top:10px}
 .balance .k{font-family:var(--mono);font-size:34px;font-weight:600;line-height:1;font-variant-numeric:tabular-nums}
 .balance .lab{font-family:var(--display);font-size:13px;letter-spacing:.12em;text-transform:uppercase;font-weight:600}
 .bal-in .k{color:var(--in)} .bal-out .k{color:var(--out)}
 .bal-out{text-align:right}
 .bal-net{text-align:center;padding-bottom:2px}
-.bal-net .k{font-size:22px}
+.bal-net .k{font-size:34px}
 .net-pill{display:inline-block;font-family:var(--mono);font-weight:600;font-size:13px;padding:2px 8px;border-radius:3px}
 .net-pill.deficit{background:var(--good-soft);color:var(--good)}
 .net-pill.surplus{background:var(--bad-soft);color:var(--bad)}
@@ -187,7 +187,7 @@ nav.tabs button.on{color:var(--ink);border-top-color:var(--in)}
   </div>
   <div class="balance">
     <div class="bal-in"><div class="lab" style="color:var(--in)">In</div><div class="k" id="bIn">0</div></div>
-    <div class="bal-net"><div id="bNetPill" class="net-pill even">0</div><div class="small faint" id="bNetLab">net</div></div>
+    <div class="bal-net"><div class="lab" id="bLeftLab">Left</div><div class="k" id="bLeft">0</div><div id="bNetPill" class="net-pill even" style="margin-top:5px;font-size:12px">net 0</div></div>
     <div class="bal-out"><div class="lab" style="color:var(--out)">Out</div><div class="k" id="bOut">0</div></div>
   </div>
   <div class="track"><div class="fill" id="trackFill"></div><div class="goal" id="trackGoal"></div></div>
@@ -523,9 +523,9 @@ function renderHeader(){
   lab.classList.toggle('today',isT);
   const inK=intakeFor(cur), b=burnFor(cur), net=inK-b.kcal, target=targetFor(cur,b.kcal), bonus=state.settings.targetMode==='intake'?Math.round(exFor(cur)*eatBack()/100):0;
   $('#bIn').textContent=fmt(inK); $('#bOut').textContent=fmt(b.kcal);
-  const pill=$('#bNetPill'); pill.textContent=sign(net);
+  const pill=$('#bNetPill'); pill.textContent='net '+sign(net);
   pill.className='net-pill '+(net<-25?'deficit':net>25?'surplus':'even');
-  $('#bNetLab').textContent=inK<=target?fmt(target-inK)+' left':'over by '+fmt(inK-target);
+  const over=inK>target, lc=over?'var(--bad)':'var(--good)'; $('#bLeft').textContent=fmt(Math.abs(target-inK)); $('#bLeft').style.color=lc; $('#bLeftLab').textContent=over?'Over':'Left'; $('#bLeftLab').style.color=lc;
   const scale=Math.max(b.kcal,inK,target,1)*1.05;
   const fill=$('#trackFill'); fill.style.width=Math.min(100,inK/scale*100)+'%'; fill.classList.toggle('over',inK>target);
   $('#trackGoal').style.left=(target/scale*100)+'%';
