@@ -199,10 +199,12 @@ nav.tabs button.on{color:var(--ink);border-top-color:var(--in)}
 <div class="view on" id="v-day">
   <section class="card">
     <div class="sec-head" style="flex-wrap:wrap"><h2>Log food</h2>
-      <div class="row" id="labelRow" hidden><label class="btn ghost sm" for="mealFile" id="mealBtn" style="cursor:pointer">Photo meal</label><input type="file" id="mealFile" accept="image/*" hidden><label class="btn ghost sm" for="labelFile" id="labelBtn" style="cursor:pointer">Photo label</label><input type="file" id="labelFile" accept="image/*" capture="environment" hidden></div></div>
+      <div class="row" id="labelRow" hidden><label class="btn ghost sm" for="mealFile" id="mealBtn" style="cursor:pointer">Meal photo</label><input type="file" id="mealFile" accept="image/*" hidden><label class="btn ghost sm" for="labelFile" id="labelBtn" style="cursor:pointer">Label photo</label><input type="file" id="labelFile" accept="image/*" capture="environment" hidden><label class="btn ghost sm" for="barFile" id="barBtn" style="cursor:pointer">Barcode</label><input type="file" id="barFile" accept="image/*" capture="environment" hidden></div></div>
+    <div class="row" style="gap:6px;flex-wrap:nowrap;margin-bottom:8px"><input type="text" id="sayText" placeholder="Type or dictate: two eggs on toast, flat white" style="flex:1;min-width:0" autocomplete="off"><button type="button" class="btn sm" id="sayBtn" style="white-space:nowrap">Log it</button></div>
+    <div class="row" id="quickRow" style="gap:6px;margin-bottom:8px" hidden></div>
     <div class="status" id="labelStatus" hidden></div>
     <div id="mealPanel" class="note" style="margin:8px 0 12px" hidden></div>
-    <form id="foodForm" autocomplete="off">
+    <form id="foodForm" autocomplete="off" novalidate>
       <div class="grid g2" style="grid-template-columns:2fr 1fr">
         <div class="field sugg">
           <label for="fName">Food</label>
@@ -216,6 +218,7 @@ nav.tabs button.on{color:var(--ink);border-top-color:var(--in)}
         <div class="field"><label for="fQty">Portions</label><input type="number" id="fQty" value="1" min="0.1" step="0.25"></div>
       </div>
       <div class="grid g4" style="margin-top:10px">
+        <div class="field" id="fGramsWrap" hidden><label for="fGrams">Weighed g</label><input type="number" id="fGrams" min="0" step="1" placeholder="scales"></div>
         <div class="field"><label for="fKcal">kcal / portion</label><input type="number" id="fKcal" min="0" step="1" required></div>
         <div class="field"><label for="fP">Protein g</label><input type="number" id="fP" min="0" step="0.5"></div>
         <div class="field"><label for="fC">Carbs g</label><input type="number" id="fC" min="0" step="0.5"></div>
@@ -226,6 +229,19 @@ nav.tabs button.on{color:var(--ink);border-top-color:var(--in)}
         <button class="btn in" type="submit">Add</button>
       </div>
     </form>
+  </section>
+
+  <section class="card">
+    <div class="sec-head"><h2>Exercise</h2><span class="num small" id="exTotal"></span></div>
+    <form id="exForm" autocomplete="off" novalidate>
+      <div class="grid g3" style="grid-template-columns:2fr 1fr 1fr">
+        <div class="field"><label for="exType">Activity</label><select id="exType"></select></div>
+        <div class="field"><label for="exMin">Minutes</label><input type="number" id="exMin" min="1" step="1"></div>
+        <div class="field"><label for="exKcal">kcal</label><input type="number" id="exKcal" min="0" step="5" required></div>
+      </div>
+      <div class="row" style="margin-top:10px;justify-content:space-between;flex-wrap:nowrap;align-items:flex-start"><span class="small faint" id="exHint" style="min-width:0"></span><button class="btn sm" type="submit">Add</button></div>
+    </form>
+    <div id="exLog" style="margin-top:6px"></div>
   </section>
 
   <section class="card">
@@ -245,7 +261,7 @@ nav.tabs button.on{color:var(--ink);border-top-color:var(--in)}
   <section class="card">
     <div class="sec-head"><h2>Burn today</h2><span class="chip" id="burnSrcChip">BMR only</span></div>
     <table class="src-table" id="burnTable"></table>
-    <p class="small faint" style="margin:8px 0 0">Out = total daily energy from the chosen source. Where a source reports only active kcal, your BMR is added. Change sources in the Sources tab.</p>
+    <p class="small faint" style="margin:8px 0 0">Out = total daily energy from the chosen source. Where a source reports only active kcal, your BMR is added. Logged exercise is added to Out only on days no wearable covers, since a wearable already counts it. Change sources in the Sources tab.</p>
   </section>
 </div>
 
@@ -257,6 +273,17 @@ nav.tabs button.on{color:var(--ink);border-top-color:var(--in)}
     <div class="chart-wrap" id="chart"></div>
   </section>
   <section class="card">
+    <div class="sec-head"><h2>This week</h2><span class="small faint" id="wbRange"></span></div>
+    <div class="stats">
+      <div class="stat"><div class="eyebrow">Budget</div><div class="v" id="wbBudget">—</div></div>
+      <div class="stat in"><div class="eyebrow">Eaten</div><div class="v" id="wbEaten">—</div></div>
+      <div class="stat net"><div class="eyebrow">Left</div><div class="v" id="wbLeft">—</div></div>
+      <div class="stat out"><div class="eyebrow">A day from here</div><div class="v" id="wbPer">—</div></div>
+    </div>
+    <label class="check" style="margin-top:12px;align-items:flex-start"><input type="checkbox" id="sBank" style="margin-top:3px"> <span>Bank across the week: shift each day's target by what earlier days left over or overshot</span></label>
+    <p class="small muted" style="margin:8px 0 0">Monday to Sunday. Earlier days with nothing logged are left out. With banking on, a day's target stays between 85% of normal and 500 above it.</p>
+  </section>
+  <section class="card">
     <div class="sec-head"><h2>Rolling 7 days</h2><span class="small faint" id="wkRange"></span></div>
     <div class="stats">
       <div class="stat in"><div class="eyebrow">Avg in</div><div class="v" id="sIn">—</div></div>
@@ -265,6 +292,13 @@ nav.tabs button.on{color:var(--ink);border-top-color:var(--in)}
       <div class="stat"><div class="eyebrow">7-day total</div><div class="v" id="sTot">—</div></div>
     </div>
     <p class="small muted" id="sNote" style="margin:12px 0 0"></p>
+  </section>
+<section class="card">
+    <div class="sec-head"><h2>Weight &amp; real burn</h2><span class="chip" id="tdeeChip">needs data</span></div>
+    <div class="field"><label for="wKg">Weight kg, <span id="wDate">today</span></label><input type="number" id="wKg" min="30" max="300" step="0.1" placeholder="e.g. 62.4"></div>
+    <div class="chart-wrap" id="wChart" style="margin-top:10px"></div>
+    <p class="small muted" id="tdeeNote" style="margin:10px 0 0"></p>
+    <div class="row" style="margin-top:8px"><button type="button" class="btn sm" id="tdeeUse" hidden>Use as my burn</button></div>
   </section>
 </div>
 
@@ -280,6 +314,7 @@ nav.tabs button.on{color:var(--ink);border-top-color:var(--in)}
         <option value="garmin">Garmin only</option>
         <option value="apple">Apple Watch only</option>
         <option value="bmr">BMR only (ignore wearables)</option>
+        <option value="measured">Measured from my weight trend</option>
       </select></div>
     <p class="small muted" style="margin:10px 0 0">Wearables disagree, often by several hundred kcal. Pick one and judge your trend against it rather than switching week to week.</p>
   </section>
@@ -352,9 +387,9 @@ nav.tabs button.on{color:var(--ink);border-top-color:var(--in)}
     <div class="sec-head"><h2>You</h2></div>
     <div class="grid g2">
       <div class="field"><label for="sBmr">BMR kcal/day</label><input type="number" id="sBmr" min="800" step="10"></div>
-      <div class="field"><label for="sMode">Target type</label><select id="sMode"><option value="intake">Fixed intake</option><option value="net">Net vs burn</option></select></div><div class="field"><label for="sGoal" id="sGoalLab">Intake kcal/day</label><input type="number" id="sGoal" step="50"></div>
+      <div class="field"><label for="sMode">Target type</label><select id="sMode"><option value="intake">Fixed intake</option><option value="net">Net vs burn</option></select></div><div class="field"><label for="sGoal" id="sGoalLab">Intake kcal/day</label><input type="number" id="sGoal" step="50"></div><div class="field"><label for="sEat">Exercise eaten back %</label><input type="number" id="sEat" min="0" max="100" step="10"></div>
     </div>
-    <p class="small muted" style="margin:10px 0 0">Target is net kcal: −200 means aim to eat 200 below burn. 0 holds weight. Fixed intake is the same kcal ceiling every day, whatever you burn. Your BMR is used whenever a source gives only active kcal; estimate it below if unsure.</p>
+    <p class="small muted" style="margin:10px 0 0">Target is net kcal: −200 means aim to eat 200 below burn. 0 holds weight. Fixed intake is the same kcal ceiling every day, whatever you burn. Logged exercise raises a fixed intake target by the percentage set here. Your BMR is used whenever a source gives only active kcal; estimate it below if unsure.</p>
     <details><summary>Estimate BMR (Mifflin–St Jeor)</summary>
       <div class="grid g4" style="margin-top:8px">
         <div class="field"><label for="eSex">Sex</label><select id="eSex"><option value="m">Male</option><option value="f">Female</option></select></div>
@@ -366,9 +401,19 @@ nav.tabs button.on{color:var(--ink);border-top-color:var(--in)}
     </details>
   </section>
   <section class="card">
-    <div class="sec-head"><h2>Label reader</h2><span class="chip" id="keyChip">off</span></div>
+    <div class="sec-head"><h2>Macro targets</h2><span class="small faint">grams a day</span></div>
+    <div class="grid g3">
+      <div class="field"><label for="mt_p">Protein</label><input type="number" id="mt_p" min="0" step="5"></div>
+      <div class="field"><label for="mt_c">Carbs</label><input type="number" id="mt_c" min="0" step="5"></div>
+      <div class="field"><label for="mt_f">Fat</label><input type="number" id="mt_f" min="0" step="5"></div>
+    </div>
+    <div class="row" style="margin-top:10px"><button type="button" class="btn ghost sm" id="mtFit">Fit carbs to my target</button></div>
+    <p class="small muted" id="mtNote" style="margin:8px 0 0"></p>
+  </section>
+  <section class="card" id="keyCard">
+    <div class="sec-head"><h2>Claude features</h2><span class="chip" id="keyChip">off</span></div>
     <div class="field"><label for="sKey">Anthropic API key</label><input type="password" id="sKey" placeholder="sk-ant-…" autocomplete="off"></div>
-    <p class="small muted" style="margin:10px 0 0">Lets "Photo meal" and "Photo label" send the picture to Claude and fill in the form. Create a key at console.anthropic.com; it is stored only in this browser and sent only to api.anthropic.com. A label read costs a fraction of a penny.</p>
+    <p class="small muted" style="margin:10px 0 0">Powers meal and label photos, "Log it" from a typed description, and typical-value search on this home-screen version. Create a key at console.anthropic.com; it is stored only in this browser and sent only to api.anthropic.com. Each use costs a fraction of a penny.</p>
   </section>
   <section class="card">
     <div class="sec-head"><h2>Backup</h2></div>
@@ -393,8 +438,13 @@ nav.tabs button.on{color:var(--ink);border-top-color:var(--in)}
 (function(){
 const $=s=>document.querySelector(s);
 const KEY='stoke.v1';
+const IN_VIEWER=!!(window.claude&&typeof window.claude.use==='function');
+let EST=null, editId=null;
+const W=()=>state.weights||(state.weights={});
+const MAC=()=>state.settings.macro||(state.settings.macro={p:0,c:0,f:0});
+const eatBack=()=>state.settings.eatBack==null?100:Math.max(0,Number(state.settings.eatBack)||0);
 const SRC=['oura','garmin','apple'];
-const SRC_NAME={oura:'Oura',garmin:'Garmin',apple:'Apple Watch',bmr:'BMR',mean:'Mean'};
+const SRC_NAME={oura:'Oura',garmin:'Garmin',apple:'Apple Watch',bmr:'BMR',mean:'Mean',bmrx:'BMR + ex',measured:'Measured'};
 
 /* ---------- starter food database (per typical UK portion) ---------- */
 const STARTER=[
@@ -413,7 +463,7 @@ const STARTER=[
 ].map(a=>({name:a[0],kcal:a[1],p:a[2],c:a[3],f:a[4],starter:true}));
 
 /* ---------- state ---------- */
-let state={settings:{bmr:1300,goal:-200,targetMode:'intake',intake:1100,source:'auto',ouraToken:'',apiKey:''},days:{},library:[]};
+let state={settings:{bmr:1300,goal:-200,targetMode:'intake',intake:1100,source:'auto',ouraToken:'',apiKey:'',macro:{p:0,c:0,f:0},eatBack:100,bank:false},days:{},library:[],weights:{}};
 try{const raw=localStorage.getItem(KEY); if(raw){const s=JSON.parse(raw); state={...state,...s,settings:{...state.settings,...(s.settings||{})}};
   if(state.settings.bmr===1750&&state.settings.goal===-300){state.settings.bmr=1300;state.settings.goal=-200;}}}catch(e){}
 function save(){try{localStorage.setItem(KEY,JSON.stringify(state));}catch(e){}}
@@ -431,7 +481,7 @@ const sign=n=>(n>0?'+':n<0?'−':'')+fmt(Math.abs(n));
 function srcTotal(d,k){const b=(d.burn||{})[k]; if(!b) return null;
   if(k==='apple'){ if(b.active==null&&b.resting==null) return null; return (b.active||0)+(b.resting!=null?b.resting:state.settings.bmr); }
   if(b.total!=null) return b.total; if(b.active!=null) return state.settings.bmr+b.active; return null;}
-function burnFor(key){const d=state.days[key]||{burn:{}}; const s=state.settings.source;
+function burnBase(key){const d=state.days[key]||{burn:{}}; const s=state.settings.source;
   const avail=SRC.filter(k=>srcTotal(d,k)!=null);
   if(s==='bmr') return {kcal:state.settings.bmr,src:'bmr'};
   if(SRC.includes(s)) return srcTotal(d,s)!=null?{kcal:srcTotal(d,s),src:s}:{kcal:state.settings.bmr,src:'bmr'};
@@ -440,13 +490,30 @@ function burnFor(key){const d=state.days[key]||{burn:{}}; const s=state.settings
   return {kcal:srcTotal(d,avail[0]),src:avail[0]};}
 function intakeFor(key){const d=state.days[key]; if(!d) return 0; return d.food.reduce((a,f)=>a+f.kcal*f.qty,0);}
 
-function targetFor(burn){const s=state.settings; return s.targetMode==='intake'?(Number(s.intake)||0):burn+s.goal;}
+function exFor(k){const d=state.days[k]; return d&&d.ex?d.ex.reduce((a,e)=>a+(Number(e.kcal)||0),0):0;}
+function burnFor(key){if(state.settings.source==='measured'&&EST&&EST.ok) return {kcal:EST.tdee,src:'measured'};
+  const b=burnBase(key); if(b.src==='bmr'){const e=exFor(key); if(e) return {kcal:b.kcal+e,src:'bmrx'};} return b;}
+function baseTarget(key,burn){const s=state.settings; return s.targetMode==='intake'?(Number(s.intake)||0)+Math.round(exFor(key)*eatBack()/100):burn+s.goal;}
+function weekKeys(key){const d=new Date(key+'T12:00:00'); const dow=(d.getDay()+6)%7; const out=[]; for(let i=0;i<7;i++){const x=new Date(d); x.setDate(d.getDate()-dow+i); out.push(iso(x));} return out;}
+const hasFood=k=>!!(state.days[k]&&state.days[k].food.length);
+function targetFor(key,burn){const base=baseTarget(key,burn); if(!state.settings.bank) return base;
+  const wk=weekKeys(key); const idx=wk.indexOf(key); let carry=0; for(let i=0;i<idx;i++){const k=wk[i]; if(hasFood(k)) carry+=baseTarget(k,burnFor(k).kcal)-intakeFor(k);}
+  return Math.round(Math.min(base+500,Math.max(base*0.85,base+carry/(7-idx))));}
+function estimate(){const end=todayIso(); const keys=[]; for(let i=27;i>=0;i--){const d=new Date(end+'T12:00:00'); d.setDate(d.getDate()-i); keys.push(iso(d));}
+  const w=keys.map((k,i)=>({i,kg:Number(W()[k])})).filter(x=>x.kg>0); const logged=keys.filter(hasFood);
+  const span=w.length?w[w.length-1].i-w[0].i+1:0; const out={ok:false,keys,w:w.length,logged:logged.length,span};
+  if(w.length<4||logged.length<10||span<14) return out;
+  const n=w.length, mx=w.reduce((a,x)=>a+x.i,0)/n, my=w.reduce((a,x)=>a+x.kg,0)/n; const sxx=w.reduce((a,x)=>a+(x.i-mx)*(x.i-mx),0); if(!sxx) return out;
+  const b=w.reduce((a,x)=>a+(x.i-mx)*(x.kg-my),0)/sxx, a=my-b*mx; const avgIn=logged.reduce((s,k)=>s+intakeFor(k),0)/logged.length; const tdee=Math.round(avgIn-b*7700);
+  if(tdee<800||tdee>6000) return out;
+  const worn=logged.map(k=>burnBase(k)).filter(x=>x.src!=='bmr'); const wornAvg=worn.length?worn.reduce((s,x)=>s+x.kcal,0)/worn.length:null;
+  return Object.assign(out,{ok:true,a,b,avgIn,tdee,wornAvg});}
 /* ---------- render: header ---------- */
 function renderHeader(){
   const d=new Date(cur+'T12:00:00'); const isT=cur===todayIso();
   const lab=$('#dateLabel'); lab.textContent=isT?'Today · '+d.toLocaleDateString('en-GB',{day:'2-digit',month:'short'}):d.toLocaleDateString('en-GB',{weekday:'short',day:'2-digit',month:'short'});
   lab.classList.toggle('today',isT);
-  const inK=intakeFor(cur), b=burnFor(cur), net=inK-b.kcal, target=targetFor(b.kcal);
+  const inK=intakeFor(cur), b=burnFor(cur), net=inK-b.kcal, target=targetFor(cur,b.kcal), bonus=state.settings.targetMode==='intake'?Math.round(exFor(cur)*eatBack()/100):0;
   $('#bIn').textContent=fmt(inK); $('#bOut').textContent=fmt(b.kcal);
   const pill=$('#bNetPill'); pill.textContent=sign(net);
   pill.className='net-pill '+(net<-25?'deficit':net>25?'surplus':'even');
@@ -454,7 +521,7 @@ function renderHeader(){
   const scale=Math.max(b.kcal,inK,target,1)*1.05;
   const fill=$('#trackFill'); fill.style.width=Math.min(100,inK/scale*100)+'%'; fill.classList.toggle('over',inK>target);
   $('#trackGoal').style.left=(target/scale*100)+'%';
-  $('#tlLeft').textContent=fmt(inK)+' kcal in'; $('#tlMid').textContent='target '+fmt(target);
+  $('#tlLeft').textContent=fmt(inK)+' kcal in'; $('#tlMid').textContent='target '+fmt(target)+(bonus?' (+'+fmt(bonus)+' ex)':'');
   $('#tlRight').textContent='burn · '+SRC_NAME[b.src];
 }
 
@@ -474,16 +541,19 @@ function renderDay(){
         const q=f.qty!==1?' <span class="num faint">×'+f.qty+'</span>':'';
         r.innerHTML='<div class="nm">'+esc(f.name)+q+'<div class="macro">P '+Math.round(f.p*f.qty)+' · C '+Math.round(f.c*f.qty)+' · F '+Math.round(f.f*f.qty)+'</div></div><div class="kc">'+fmt(f.kcal*f.qty)+'</div><button class="x" aria-label="Remove">×</button>';
         r.querySelector('.x').onclick=()=>{d.food=d.food.filter(x=>x.id!==f.id); save(); render();};
-        el.appendChild(r);});
+        const nm=r.querySelector('.nm'); nm.style.cursor='pointer'; nm.title='Tap to edit'; nm.onclick=()=>{editId=editId===f.id?null:f.id; renderDay();};
+        el.appendChild(r); if(editId===f.id) el.appendChild(editRow(f));});
       log.appendChild(el);});
   }
   const m=d.food.reduce((a,f)=>({p:a.p+f.p*f.qty,c:a.c+f.c*f.qty,f:a.f+f.f*f.qty}),{p:0,c:0,f:0});
-  $('#mP').innerHTML=Math.round(m.p)+'<small> g</small>'; $('#mC').innerHTML=Math.round(m.c)+'<small> g</small>'; $('#mF').innerHTML=Math.round(m.f)+'<small> g</small>';
+  const mt=MAC(); $('#mP').innerHTML=macHTML(m.p,mt.p); $('#mC').innerHTML=macHTML(m.c,mt.c); $('#mF').innerHTML=macHTML(m.f,mt.f);
   // burn table
   const b=burnFor(cur); const t=$('#burnTable'); let h='<tr><th>Source</th><th style="text-align:right">Active</th><th style="text-align:right">Total</th></tr>';
   SRC.forEach(k=>{const r=(d.burn||{})[k]||{}; const tot=srcTotal(d,k); const act=r.active;
     h+='<tr class="'+(b.src===k?'chosen':'')+'"><td><span class="dot '+k+'"></span>'+SRC_NAME[k]+(tot==null?' <span class="faint small">no data</span>':'')+'</td><td class="n">'+(act!=null?fmt(act):'—')+'</td><td class="n">'+(tot!=null?fmt(tot):'—')+'</td></tr>';});
-  h+='<tr class="'+(b.src==='bmr'?'chosen':'')+'"><td><span class="dot bmr"></span>BMR (settings)</td><td class="n">—</td><td class="n">'+fmt(state.settings.bmr)+'</td></tr>';
+  h+='<tr class="'+(b.src==='bmr'||b.src==='bmrx'?'chosen':'')+'"><td><span class="dot bmr"></span>BMR (settings)</td><td class="n">—</td><td class="n">'+fmt(state.settings.bmr)+'</td></tr>';
+  const exk=exFor(cur); if(exk) h+='<tr class="'+(b.src==='bmrx'?'chosen':'')+'"><td>Exercise (logged)</td><td class="n">'+fmt(exk)+'</td><td class="n">—</td></tr>';
+  if(b.src==='measured') h+='<tr class="chosen"><td>Measured from weight trend</td><td class="n">—</td><td class="n">'+fmt(b.kcal)+'</td></tr>';
   if(b.src==='mean') h+='<tr class="chosen"><td>Mean of sources</td><td class="n">—</td><td class="n">'+fmt(b.kcal)+'</td></tr>';
   t.innerHTML=h; $('#burnSrcChip').textContent='using '+SRC_NAME[b.src];
 }
@@ -616,7 +686,7 @@ async function claudeSearch(q){const prompt='Give typical nutrition for the food
 function showLive(hits){sl.innerHTML=''; hits.slice(0,8).forEach(f=>{const b=document.createElement('button'); b.type='button'; b.className='sugg-item';
   b.innerHTML='<span>'+esc(f.name)+' <span class="chip" style="font-size:10px">'+f.src+'</span></span><span class="n">'+f.kcal+' kcal</span>';
   b.onclick=()=>{fName.value=f.name; $('#fKcal').value=f.kcal; $('#fP').value=f.p; $('#fC').value=f.c; $('#fF').value=f.f; sl.classList.remove('on'); $('#fQty').focus();}; sl.appendChild(b);}); sl.classList.add('on');}
-$('#liveBtn').onclick=async()=>{const q=fName.value.trim(); const st=$('#liveStatus'); const btn=$('#liveBtn'); if(q.length<2){fName.focus();return;}
+$('#liveBtn').onclick=async()=>{const q=fName.value.trim(); const st=$('#liveStatus'); const btn=$('#liveBtn'); if(q.length<2){fName.focus();return;} if(/^\d{8,14}$/.test(q)){barLookup(q);return;}
   btn.disabled=true; st.hidden=false; st.className='status'; st.textContent='Searching…'; sl.classList.remove('on');
   try{let hits=[]; let via='';
     try{hits=await offSearch(q); via='Open Food Facts';}catch(e){}
@@ -644,7 +714,7 @@ async function readViaApi(file,prompt,maxTok){const key=state.settings.apiKey; i
   // Claude viewer path (if this page is opened as a claude.ai artifact), else API key path
   let viewerSample=null;
   try{ if(window.claude&&typeof claude.use==='function'){const s=await claude.use('sample'); const lim=s?await s.limits().catch(()=>null):null; if(lim&&lim.images) viewerSample=s;} }catch(e){}
-  function refresh(){$('#labelRow').hidden=!(viewerSample||state.settings.apiKey);}
+  function refresh(){const ai=!!(viewerSample||state.settings.apiKey); $('#labelRow').hidden=false; $('#mealBtn').hidden=!ai; $('#labelBtn').hidden=!ai; $('#barBtn').hidden=IN_VIEWER;}
   refresh(); window.__refreshLabel=refresh;
   inp.addEventListener('change',async()=>{
     const file=inp.files&&inp.files[0]; if(!file) return;
@@ -678,13 +748,13 @@ async function mealAsk(file,hint,answers){const prompt=MEAL_PROMPT+(answers?' Th
   if(s) return s.json(prompt,{images:[file]});
   if(typeof readViaApi==='function') return readViaApi(file,prompt,1200);
   throw {code:'no_key'};}
-function showMeal(r,refine){const box=$('#mealPanel');
+function showMeal(r,refine,kind){const box=$('#mealPanel');
   const items=(Array.isArray(r.items)?r.items:[]).map(x=>({name:String(x.name||'Item')+(Number(x.grams)?' (~'+Math.round(Number(x.grams))+' g)':''),kcal:Math.round(Number(x.kcal)||0),p:Number(x.protein)||0,c:Number(x.carbs)||0,f:Number(x.fat)||0})).filter(x=>x.kcal>0);
   if(!items.length) throw {code:'nofood',message:'no food items recognised'};
-  let h='<div class="sec-head" style="margin-bottom:4px"><span class="eyebrow">Meal estimate</span><span class="num" id="mealTotal" style="color:var(--in);font-weight:600"></span></div>';
+  let h='<div class="sec-head" style="margin-bottom:4px"><span class="eyebrow">'+(kind==='text'?'From your description':'Meal estimate')+'</span><span class="num" id="mealTotal" style="color:var(--in);font-weight:600"></span></div>';
   items.forEach((x,i)=>{h+='<div style="display:grid;grid-template-columns:auto 1fr 84px;gap:8px;align-items:center;padding:6px 0;border-bottom:1px dashed var(--rule)"><input type="checkbox" id="mealC'+i+'" checked><label for="mealC'+i+'" style="min-width:0;overflow-wrap:anywhere;color:var(--ink)">'+esc(x.name)+'</label><input type="number" id="mealK'+i+'" value="'+x.kcal+'" min="0" step="5" aria-label="kcal"></div>';});
   const lo=Number(r.low),hi=Number(r.high);
-  h+='<p style="margin:8px 0">'+(lo>0&&hi>lo?'Plausible range '+fmt(lo)+'–'+fmt(hi)+' kcal. ':'')+(r.note?esc(String(r.note))+' ':'')+'Photo estimates can be off by a quarter or more; change any figure you know better.</p>';
+  h+='<p style="margin:8px 0">'+(lo>0&&hi>lo?'Plausible range '+fmt(lo)+'–'+fmt(hi)+' kcal. ':'')+(r.note?esc(String(r.note))+' ':'')+(kind==='text'?'Typical values for what you described':'Photo estimates can be off by a quarter or more')+'; change any figure you know better.</p>';
   const qs=(refine&&Array.isArray(r.questions)?r.questions:[]).slice(0,3).map(q=>({q:String(q&&q.q||''),o:(Array.isArray(q&&q.options)?q.options:[]).slice(0,4).map(String)})).filter(q=>q.q);
   const ql='font-family:var(--body);font-size:14px;letter-spacing:0;text-transform:none;color:var(--ink);font-weight:500';
   qs.forEach((q,i)=>{h+='<div class="field" style="margin:8px 0"><label for="mealQ'+i+'" style="'+ql+'">'+esc(q.q)+'</label><select id="mealQ'+i+'"><option value="">Not sure</option>'+q.o.map(o=>'<option>'+esc(o)+'</option>').join('')+'</select></div>';});
@@ -728,7 +798,7 @@ $('#libSearch').oninput=renderLib;
 
 /* ---------- settings ---------- */
 function renderSettings(){$('#sBmr').value=state.settings.bmr; const im=state.settings.targetMode==='intake'; $('#sMode').value=im?'intake':'net'; $('#sGoal').value=im?state.settings.intake:state.settings.goal; $('#sGoalLab').textContent=im?'Intake kcal/day':'Net kcal vs burn'; $('#sKey').value=state.settings.apiKey||''; const kc=$('#keyChip'); kc.textContent=state.settings.apiKey?'key saved':'off'; kc.className='chip '+(state.settings.apiKey?'live':''); if(window.__refreshLabel) window.__refreshLabel();}
-$('#sKey').onchange=e=>{state.settings.apiKey=e.target.value.trim(); save(); render(); toast(state.settings.apiKey?'Label reader on':'Label reader off');};
+$('#sKey').onchange=e=>{state.settings.apiKey=e.target.value.trim(); save(); render(); toast(state.settings.apiKey?'Claude features on':'Claude features off');};
 $('#sBmr').onchange=e=>{const v=num(e.target.value); if(v){state.settings.bmr=v; save(); render();}};
 $('#sGoal').onchange=e=>{const v=num(e.target.value)||0; if(state.settings.targetMode==='intake') state.settings.intake=Math.max(0,v); else state.settings.goal=v; save(); render();};
 $('#sMode').onchange=e=>{state.settings.targetMode=e.target.value; save(); render();};
@@ -736,11 +806,119 @@ $('#eCalc').onclick=()=>{const a=num($('#eAge').value),h=num($('#eH').value),w=n
   const bmr=Math.round(10*w+6.25*h-5*a+($('#eSex').value==='m'?5:-161)); state.settings.bmr=bmr; save(); render(); out.className='status ok'; out.textContent='BMR set to '+bmr+' kcal/day.';};
 $('#bkCopy').onclick=()=>{const txt=JSON.stringify(state); const st=$('#bkStatus'); const fallback=()=>{$('#bkText').value=txt; $('#bkText').select(); st.className='status'; st.textContent='Clipboard unavailable here; the JSON is in the box, selected. Copy it manually.';};
   if(navigator.clipboard&&navigator.clipboard.writeText) navigator.clipboard.writeText(txt).then(()=>{st.className='status ok'; st.textContent='Backup copied ('+Object.keys(state.days).length+' days, '+state.library.length+' foods).';}).catch(fallback); else fallback();};
-$('#bkLoad').onclick=()=>{const st=$('#bkStatus'); try{const s=JSON.parse($('#bkText').value); if(!s.days||!s.settings) throw new Error('not a Stoke backup'); state=s; save(); render(); st.className='status ok'; st.textContent='Restored.'; $('#bkText').value='';}catch(e){st.className='status err'; st.textContent='Could not restore: '+e.message;}};
+$('#bkLoad').onclick=()=>{const st=$('#bkStatus'); try{const s=JSON.parse($('#bkText').value); if(!s.days||!s.settings) throw new Error('not a Stoke backup'); state={...state,...s,settings:{...state.settings,...s.settings}}; save(); render(); st.className='status ok'; st.textContent='Restored.'; $('#bkText').value='';}catch(e){st.className='status err'; st.textContent='Could not restore: '+e.message;}};
 $('#bkSample').onclick=()=>{const picks=[0,1,3,5,8,11,13,16,19,24,26,29,31,33]; for(let i=6;i>=1;i--){const d=new Date(); d.setDate(d.getDate()-i); const k=iso(d); const r=dayRec(k); if(r.food.length) continue;
     const n=3+(i%3); for(let j=0;j<n;j++){const s=STARTER[picks[(i*3+j)%picks.length]]; r.food.push({id:k+j,name:s.name,kcal:s.kcal,p:s.p,c:s.c,f:s.f,qty:1,h:[8,13,19,22][j]||12});}
     setBurn(k,'oura','active',380+((i*97)%220)); setBurn(k,'oura','total',state.settings.bmr+380+((i*97)%220)+120); setBurn(k,'garmin','active',430+((i*61)%260)); setBurn(k,'garmin','total',state.settings.bmr+430+((i*61)%260)+60); setBurn(k,'apple','active',500+((i*83)%300));}
   save(); render(); $('#bkStatus').className='status ok'; $('#bkStatus').textContent='Sample days added for the last week (example figures, not yours). Delete entries from the Day view to clear them.'; toast('Sample week loaded');};
+
+/* ---------- macros, entry editing ---------- */
+function macHTML(v,t){v=Math.round(v); t=Number(t)||0; return t>0?v+'<small> / '+t+' g</small><div style="height:4px;background:var(--rule);border-radius:2px;margin-top:6px"><div style="height:100%;width:'+Math.min(100,v/t*100)+'%;background:var(--ink-2);border-radius:2px"></div></div>':v+'<small> g</small>';}
+function editRow(f){const w=document.createElement('div'); w.className='note'; w.style.margin='4px 0 8px';
+  w.innerHTML='<div class="field"><label for="ed_name">Name</label><input type="text" id="ed_name" data-k="name"></div><div class="grid g3" style="margin-top:8px">'+[['qty','Portions','0.25'],['kcal','kcal each','1'],['p','Protein g','0.5'],['c','Carbs g','0.5'],['f','Fat g','0.5']].map(a=>'<div class="field"><label for="ed_'+a[0]+'">'+a[1]+'</label><input type="number" id="ed_'+a[0]+'" min="0" step="'+a[2]+'" data-k="'+a[0]+'"></div>').join('')+'</div><div class="row" style="margin-top:8px"><button type="button" class="btn sm" data-a="save">Save</button><button type="button" class="btn ghost sm" data-a="cancel">Cancel</button></div>';
+  w.querySelectorAll('[data-k]').forEach(i=>{i.value=f[i.dataset.k];});
+  w.querySelector('[data-a=cancel]').onclick=()=>{editId=null; renderDay();};
+  w.querySelector('[data-a=save]').onclick=()=>{w.querySelectorAll('[data-k]').forEach(i=>{const k=i.dataset.k; if(k==='name'){if(i.value.trim()) f.name=i.value.trim();} else {const v=num(i.value); if(v!=null&&v>=0) f[k]=(k==='qty'&&v===0)?f.qty:v;}}); editId=null; save(); render(); toast('Entry updated');};
+  return w;}
+['p','c','f'].forEach(k=>{$('#mt_'+k).onchange=e=>{MAC()[k]=Math.max(0,num(e.target.value)||0); save(); render();};});
+$('#mtFit').onclick=()=>{const m=MAC(); const t=targetFor(cur,burnFor(cur).kcal); m.c=Math.max(0,Math.round((t-4*m.p-9*m.f)/4/5)*5); save(); render(); toast('Carbs set to '+m.c+' g');};
+$('#sEat').onchange=e=>{state.settings.eatBack=Math.min(100,Math.max(0,num(e.target.value)||0)); save(); render();};
+$('#sBank').onchange=e=>{state.settings.bank=e.target.checked; save(); render(); toast(e.target.checked?'Weekly banking on':'Weekly banking off');};
+
+/* ---------- exercise ---------- */
+const ACTS=[['Walk',3.5],['Brisk walk',4.3],['Run, easy',8.3],['Run, hard',11],['Cycle, easy',6.8],['Cycle, hard',10],['Weights',5],['HIIT / circuits',8],['Swim',7],['Row',7],['Yoga / pilates',3],['Other',0]];
+$('#exType').innerHTML=ACTS.map(a=>'<option>'+a[0]+'</option>').join('');
+function latestKg(){const ks=Object.keys(W()).filter(k=>Number(W()[k])>0).sort(); return ks.length?Number(W()[ks[ks.length-1]]):null;}
+function exEstimate(){const a=ACTS[$('#exType').selectedIndex]; const min=num($('#exMin').value); if(a&&a[1]&&min) $('#exKcal').value=Math.round((a[1]-1)*(latestKg()||65)*min/60);}
+$('#exType').onchange=exEstimate; $('#exMin').oninput=exEstimate;
+$('#exForm').onsubmit=e=>{e.preventDefault(); const k=num($('#exKcal').value); if(k==null||k<=0) return; const d=dayRec(cur); (d.ex=d.ex||[]).push({id:Date.now()+'x',name:ACTS[$('#exType').selectedIndex][0],min:num($('#exMin').value)||0,kcal:Math.round(k)}); save(); $('#exMin').value=''; $('#exKcal').value=''; render(); toast('Exercise added · '+fmt(k)+' kcal');};
+function renderEx(){const d=dayRec(cur); const ex=d.ex||[]; const box=$('#exLog'); box.innerHTML=''; const tot=exFor(cur); $('#exTotal').textContent=tot?fmt(tot)+' kcal':'';
+  const kg=latestKg(); $('#exHint').textContent='Minutes give an estimate for '+(kg?kg+' kg':'65 kg, until you log a weight')+'. Type your watch figure over it if you have one.';
+  ex.forEach(x=>{const r=document.createElement('div'); r.className='entry'; r.innerHTML='<div class="nm">'+esc(x.name)+(x.min?' <span class="num faint">'+x.min+' min</span>':'')+'</div><div class="kc" style="color:var(--out)">'+fmt(x.kcal)+'</div><button class="x" aria-label="Remove">×</button>';
+    r.querySelector('.x').onclick=()=>{d.ex=d.ex.filter(y=>y.id!==x.id); save(); render();}; box.appendChild(r);});}
+
+/* ---------- one-tap repeats ---------- */
+function logItems(items,msg){const d=dayRec(cur); let t=0; items.forEach((f,i)=>{d.food.push({id:Date.now()+'q'+i,name:f.name,kcal:f.kcal,p:f.p||0,c:f.c||0,f:f.f||0,qty:f.qty||1,h:new Date().getHours()}); t+=f.kcal*(f.qty||1);}); save(); render(); toast((msg||'Logged')+' · '+fmt(t)+' kcal');}
+function renderQuick(){const row=$('#quickRow'); row.innerHTML='';
+  const chip=(label,fn)=>{const b=document.createElement('button'); b.type='button'; b.className='chip'; b.style.cssText='border:1px solid var(--rule);background:var(--panel);color:var(--ink);padding:6px 9px;font-size:12px;cursor:pointer;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap'; b.textContent=label; b.onclick=fn; row.appendChild(b);};
+  const y=new Date(cur+'T12:00:00'); y.setDate(y.getDate()-1); const yd=state.days[iso(y)]; const slot=slotOf(new Date().getHours()); const ys=yd?yd.food.filter(f=>slotOf(f.h)===slot):[];
+  if(ys.length) chip('Repeat yesterday’s '+SLOTS[slot][0].toLowerCase()+' · '+fmt(ys.reduce((a,f)=>a+f.kcal*f.qty,0)),()=>logItems(ys,'Repeated'));
+  state.library.filter(f=>f.uses).sort((a,b)=>b.uses-a.uses).slice(0,5).forEach(f=>chip((f.name.length>24?f.name.slice(0,23)+'…':f.name)+' · '+f.kcal,()=>{f.uses++; logItems([f]);}));
+  row.hidden=!row.children.length;}
+
+/* ---------- Claude helpers: text and vision ---------- */
+function looseJSON(t){try{return JSON.parse(t);}catch(e){} const a=t.search(/[\[{]/), b=Math.max(t.lastIndexOf('}'),t.lastIndexOf(']')); if(a>=0&&b>a){try{return JSON.parse(t.slice(a,b+1));}catch(e){}} throw {code:'invalid_json',message:'no JSON in reply'};}
+async function viewerSample(){try{if(IN_VIEWER) return await claude.use('sample');}catch(e){} return null;}
+async function textJSON(prompt,maxTok){const s=await viewerSample(); if(s) return s.json(prompt,{modelTier:'quick'});
+  const key=state.settings.apiKey; if(!key) throw {code:'no_key'};
+  const r=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'content-type':'application/json','x-api-key':key,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify({model:'claude-haiku-5-5',max_tokens:maxTok||700,messages:[{role:'user',content:prompt}]})});
+  if(r.status===401) throw {code:'bad_key'}; if(r.status===429) throw {code:'rate_limited'}; if(!r.ok) throw {code:'upstream_error',message:'HTTP '+r.status};
+  const j=await r.json(); return looseJSON((j.content||[]).filter(c=>c.type==='text').map(c=>c.text).join('\n'));}
+async function visionJSON(file,prompt,maxTok){const s=await viewerSample(); if(s) return s.json(prompt,{images:[file]}); return readViaApi(file,prompt,maxTok);}
+function aiErr(e){const c=e&&e.code; return c==='no_key'?'Add your Anthropic API key under Set to use this.':c==='bad_key'?'API key rejected; check it under Set.':c==='not_granted'||c==='sampling_disabled'?'Claude is not allowed for this page on this account.':c==='rate_limited'?'Too many requests; try again in a minute.':c==='nofood'?'Nothing to log in that ('+e.message+').':c==='invalid_json'?'Could not turn that into numbers; try rewording.':'Could not do that ('+(e&&e.message||'offline or blocked')+').';}
+
+/* ---------- say it or type it ---------- */
+const SAY_PROMPT='The person says what they ate or drank: "{T}". Split it into separate items. Use the amounts given, otherwise typical UK portions. Reply with only one JSON object: {"items": [{"name": short food name, "grams": grams or ml, "kcal": number, "protein": g, "carbs": g, "fat": g}], "low": plausible lower bound for total kcal, "high": plausible upper bound, "note": one short sentence on the biggest uncertainty, "questions": [up to 2 of {"q": short question, "options": [2 to 4 short answers]}]}. Ask a question only where the answer would move the total by more than about 10 percent; otherwise give an empty list. Numbers are plain numbers. If it is not food or drink, reply {"error": "why"}.';
+async function runSay(text,answers){const st=$('#labelStatus'), btn=$('#sayBtn'); btn.disabled=true; st.hidden=false; st.className='status'; st.textContent=answers?'Updating…':'Working out what that is…';
+  try{const safe=text.replace(/"/g,"'").slice(0,500); const r=await textJSON(SAY_PROMPT.replace('{T}',()=>safe)+(answers?' Extra details from the person: '+answers.slice(0,600)+' Use them and return an empty questions list.':''),900);
+    if(!r||r.error) throw {code:'nofood',message:r&&r.error||'nothing recognisable'};
+    showMeal(r,a=>runSay(text,(answers?answers+' ':'')+a),'text'); st.className='status ok'; st.textContent='Check the items, then log.'; $('#sayText').value='';
+  }catch(e){st.className='status err'; st.textContent=aiErr(e);}
+  finally{btn.disabled=false;}}
+$('#sayBtn').onclick=()=>{const t=$('#sayText').value.trim(); if(t.length<3){$('#sayText').focus();return;} runSay(t);};
+$('#sayText').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault(); $('#sayBtn').click();}});
+
+/* ---------- barcode and weighed grams ---------- */
+function syncGrams(){const on=/\(100 ?g\)\s*$/i.test(fName.value); $('#fGramsWrap').hidden=!on; if(!on) $('#fGrams').value='';}
+fName.addEventListener('input',syncGrams); $('#fQty').addEventListener('focus',syncGrams);
+$('#fGrams').oninput=e=>{const g=num(e.target.value); if(g!=null&&g>0) $('#fQty').value=Math.round(g)/100;};
+function offMap(p){const n=p.nutriments||{}; const perS=n['energy-kcal_serving']!=null; const k=perS?n['energy-kcal_serving']:n['energy-kcal_100g']; if(k==null) return null;
+  const g=x=>{const v=perS?n[x+'_serving']:n[x+'_100g']; return v!=null?Math.round(v*10)/10:0;}; const nm=[p.brands?p.brands.split(',')[0].trim():'',p.product_name||''].filter(Boolean).join(' ')||'Product';
+  return {name:nm+(perS&&p.serving_size?' ('+p.serving_size+')':' (100 g)'),kcal:Math.round(k),p:g('proteins'),c:g('carbohydrates'),f:g('fat')};}
+async function offCode(code){const r=await fetch('https://world.openfoodfacts.org/api/v2/product/'+code+'.json?fields=product_name,brands,serving_size,nutriments'); if(r.status===404) return null; if(!r.ok) throw new Error('HTTP '+r.status); const j=await r.json(); return j&&j.product?offMap(j.product):null;}
+let zxP=null; function loadZX(){return zxP||(zxP=new Promise((res,rej)=>{const s=document.createElement('script'); s.src='zxing.min.js'; s.onload=res; s.onerror=()=>{zxP=null; rej(new Error('scanner did not load'));}; document.head.appendChild(s);}));}
+function shrinkURL(file,max){return new Promise((res,rej)=>{const img=new Image(); const u=URL.createObjectURL(file); img.onload=()=>{URL.revokeObjectURL(u); const s=Math.min(1,max/Math.max(img.width,img.height)); const c=document.createElement('canvas'); c.width=Math.round(img.width*s); c.height=Math.round(img.height*s); c.getContext('2d').drawImage(img,0,0,c.width,c.height); res(c.toDataURL('image/jpeg',0.92));}; img.onerror=()=>{URL.revokeObjectURL(u); rej(new Error('bad image'));}; img.src=u;});}
+async function decodeBar(file){
+  if('BarcodeDetector' in window){try{const bd=new BarcodeDetector({formats:['ean_13','ean_8','upc_a','upc_e']}); const r=await bd.detect(await createImageBitmap(file)); if(r[0]&&r[0].rawValue) return r[0].rawValue;}catch(e){}}
+  try{await loadZX(); const rd=new ZXing.BrowserMultiFormatReader(); for(const max of [1400,900,2000]){try{const r=await rd.decodeFromImageUrl(await shrinkURL(file,max)); if(r) return r.getText();}catch(e){}}}catch(e){}
+  try{const r=await visionJSON(file,'Read the number printed under the barcode in this photo. Reply with only {"code": "the digits, no spaces"} or {"error": "why not"}.',100); const c=r&&String(r.code||'').replace(/\D/g,''); if(/^\d{8,14}$/.test(c)) return c;}catch(e){}
+  return null;}
+async function barLookup(code){const st=$('#labelStatus'); st.hidden=false; st.className='status'; st.textContent='Looking up '+code+'…';
+  try{const f=await offCode(code); if(!f){st.className='status err'; st.textContent='Barcode '+code+' has no nutrition data in Open Food Facts. Use Label photo for this one.'; return;}
+    fName.value=f.name; $('#fKcal').value=f.kcal; $('#fP').value=f.p; $('#fC').value=f.c; $('#fF').value=f.f; $('#fQty').value=1; sl.classList.remove('on'); syncGrams();
+    st.className='status ok'; st.textContent='Found '+f.name+'. '+($('#fGramsWrap').hidden?'Set portions':'Enter weighed grams or portions')+', then Add.'; (($('#fGramsWrap').hidden)?$('#fQty'):$('#fGrams')).focus();
+  }catch(e){st.className='status err'; st.textContent='Could not reach the product database ('+(e&&e.message||'offline')+').';}}
+$('#barFile').addEventListener('change',async e=>{const inp=e.target, file=inp.files&&inp.files[0]; if(!file) return; const st=$('#labelStatus'), btn=$('#barBtn');
+  btn.style.pointerEvents='none'; btn.style.opacity='.5'; st.hidden=false; st.className='status'; st.textContent='Reading the barcode…';
+  try{const code=await decodeBar(file); if(!code){st.className='status err'; st.textContent='No barcode found. Fill the frame with the barcode, or type its number into Food and press Search.';} else await barLookup(code);}
+  finally{btn.style.pointerEvents=''; btn.style.opacity=''; inp.value='';}});
+
+/* ---------- weight, real burn, weekly budget ---------- */
+function weightChart(keys){const pts=keys.map((k,i)=>({i,kg:Number(W()[k])})).filter(p=>p.kg>0); if(pts.length<2) return '<div class="empty">'+(pts.length?'One weigh-in so far. Add more to see the trend.':'No weigh-ins yet.')+'</div>';
+  const Wd=420,H=150,L=40,R=10,T=12,B=24; const lo=Math.min(...pts.map(p=>p.kg))-0.5, hi=Math.max(...pts.map(p=>p.kg))+0.5; const x=i=>L+(Wd-L-R)*i/(keys.length-1), y=v=>T+(H-T-B)*(1-(v-lo)/(hi-lo));
+  let s='<svg viewBox="0 0 '+Wd+' '+H+'" width="100%" style="min-width:280px;display:block" role="img" aria-label="Weight over the last 28 days">';
+  [hi-0.5,lo+0.5].forEach((v,n)=>{if(n&&hi-lo<1.05) return; s+='<line x1="'+L+'" x2="'+(Wd-R)+'" y1="'+y(v)+'" y2="'+y(v)+'" stroke="var(--rule)" stroke-width="1"/><text x="'+(L-6)+'" y="'+(y(v)+4)+'" text-anchor="end">'+v.toFixed(1)+'</text>';});
+  if(EST&&EST.ok) s+='<line x1="'+x(0)+'" y1="'+y(EST.a)+'" x2="'+x(keys.length-1)+'" y2="'+y(EST.a+EST.b*(keys.length-1))+'" stroke="var(--in)" stroke-width="2" stroke-dasharray="6 5"/>';
+  s+='<polyline fill="none" stroke="var(--ink)" stroke-width="2" points="'+pts.map(p=>x(p.i).toFixed(1)+','+y(p.kg).toFixed(1)).join(' ')+'"/>'; pts.forEach(p=>{s+='<circle cx="'+x(p.i).toFixed(1)+'" cy="'+y(p.kg).toFixed(1)+'" r="3.5" fill="var(--ink)"/>';});
+  return s+'<text x="'+L+'" y="'+(H-6)+'">4 weeks ago</text><text x="'+(Wd-R)+'" y="'+(H-6)+'" text-anchor="end">today</text></svg>';}
+$('#wKg').onchange=e=>{const v=num(e.target.value); if(v!=null&&v>=30&&v<=300) W()[cur]=Math.round(v*10)/10; else delete W()[cur]; save(); render(); if(W()[cur]) toast('Weight saved · '+W()[cur]+' kg');};
+$('#tdeeUse').onclick=()=>{state.settings.source='measured'; save(); render(); toast('Burn now uses your measured figure');};
+function renderMore(){
+  const wk=weekKeys(cur), idx=wk.indexOf(cur); const counted=wk.filter((k,i)=>i>=idx||hasFood(k));
+  const budget=counted.reduce((a,k)=>a+baseTarget(k,burnFor(k).kcal),0), eaten=counted.reduce((a,k)=>a+intakeFor(k),0), before=counted.filter(k=>wk.indexOf(k)<idx);
+  const left=budget-eaten, per=(budget-before.reduce((a,k)=>a+intakeFor(k),0))/Math.max(1,counted.length-before.length);
+  $('#wbBudget').textContent=fmt(budget); $('#wbEaten').textContent=fmt(eaten); $('#wbLeft').textContent=left<0?'−'+fmt(-left):fmt(left); $('#wbPer').textContent=fmt(Math.max(0,per));
+  const dd=k=>new Date(k+'T12:00:00').toLocaleDateString('en-GB',{day:'numeric',month:'short'}); $('#wbRange').textContent=dd(wk[0])+' to '+dd(wk[6]); $('#sBank').checked=!!state.settings.bank;
+  $('#wDate').textContent=cur===todayIso()?'today':dd(cur); const wi=$('#wKg'); if(document.activeElement!==wi) wi.value=W()[cur]||'';
+  const E=EST||{ok:false,keys:[],w:0,logged:0,span:0}; $('#wChart').innerHTML=weightChart(E.keys);
+  const chip=$('#tdeeChip'), note=$('#tdeeNote'), use=$('#tdeeUse');
+  if(E.ok){chip.textContent=fmt(E.tdee)+' kcal/day'; chip.className='chip live'; const wkly=E.b*7;
+    note.textContent='Over the last 4 weeks you ate about '+fmt(E.avgIn)+' kcal a day on logged days and your weight trend was '+(wkly<0?'−':'+')+Math.abs(wkly).toFixed(2)+' kg a week. That puts your real burn near '+fmt(E.tdee)+' kcal a day'+(E.wornAvg?', against '+fmt(E.wornAvg)+' from your wearable':'')+'. It assumes unlogged days looked like logged ones, and water weight makes any single fortnight noisy.';
+    use.hidden=state.settings.source==='measured';}
+  else{chip.textContent='needs data'; chip.className='chip'; use.hidden=true; note.textContent='Needs 4 weigh-ins spread over at least two weeks and 10 logged days in the last four weeks. So far: '+E.w+' weigh-in'+(E.w===1?'':'s')+', '+E.logged+' logged day'+(E.logged===1?'':'s')+'. Weigh at the same time of day for a cleaner trend.';}
+  const m=MAC(); ['p','c','f'].forEach(k=>{const el=$('#mt_'+k); if(document.activeElement!==el) el.value=m[k]||'';});
+  const kc=m.p*4+m.c*4+m.f*9; $('#mtNote').textContent=kc?'These add up to '+fmt(kc)+' kcal, against today’s target of '+fmt(targetFor(cur,burnFor(cur).kcal))+'. The Day tab shows progress against each. Tap any logged food to change its macros.':'Leave blank for no target. Tap any logged food on the Day tab to change its macros.';
+  $('#sEat').value=eatBack(); $('#keyCard').hidden=IN_VIEWER; syncGrams(); renderEx(); renderQuick();}
 
 /* ---------- nav ---------- */
 const VIEWS=['day','week','sources','foods','settings'];
@@ -748,11 +926,11 @@ function show(v){if(!VIEWS.includes(v)) v='day'; VIEWS.forEach(x=>$('#v-'+x).cla
 document.querySelectorAll('nav.tabs button').forEach(b=>b.onclick=()=>show(b.dataset.v));
 $('#prevDay').onclick=()=>shift(-1); $('#nextDay').onclick=()=>shift(1); $('#dateLabel').onclick=()=>{cur=todayIso(); render();};
 let tt; function toast(m){const t=$('#toast'); t.textContent=m; t.classList.add('on'); clearTimeout(tt); tt=setTimeout(()=>t.classList.remove('on'),1600);}
-function render(){renderHeader(); renderDay(); renderWeek(); renderSources(); renderLib(); renderSettings();}
+function render(){EST=estimate(); renderHeader(); renderDay(); renderWeek(); renderSources(); renderLib(); renderSettings(); renderMore();}
 show((location.hash||'').replace('#',''));
 render();
 })();
 </script>
-<script>if("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js");</script>
+<script>try{if("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(function(){});}catch(e){}</script>
 </body>
 </html>
