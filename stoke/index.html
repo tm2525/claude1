@@ -467,7 +467,18 @@ const STARTER=[
  ['Flat white',120,6,9,6],['Americano, black',5,0,1,0],['Pint of lager',180,2,15,0],['Glass of red wine, 175 ml',160,0,5,0],
  ['Dark chocolate, 4 squares (20 g)',110,2,9,8],['Crisps, 25 g bag',130,2,13,8],['Sandwich, meal-deal chicken salad',430,24,45,16],
  ['Tesco meal deal: sandwich + crisps + drink',700,28,80,28],['Burrito, chicken',800,40,90,28],['Margherita pizza, 12 in, whole',1100,45,130,42],
- ['Chicken tikka masala + rice',900,40,90,40],['Pad thai, takeaway',750,25,95,25],['Fish and chips, portion',900,35,95,45],['Hospital canteen jacket + beans + cheese',520,22,70,16]
+ ['Chicken tikka masala + rice',900,40,90,40],['Pad thai, takeaway',750,25,95,25],['Fish and chips, portion',900,35,95,45],['Hospital canteen jacket + beans + cheese',520,22,70,16],
+ ['Chicken thigh, 1 roasted, skin on',180,18,0,12],['Turkey breast slices, 100 g',105,23,1,1],['Bacon, 2 rashers grilled',130,10,0,10],['Sausage, 1 pork grilled',150,8,5,11],['Ham, 2 slices',60,10,1,2],['Steak, sirloin 200 g',400,50,0,22],
+ ['Cod fillet, 140 g baked',130,29,0,1],['Prawns, 100 g cooked',99,24,0,0],['Baked beans, half tin',170,10,27,1],['Chickpeas, 120 g drained',160,9,20,3],['Milk, semi-skimmed 200 ml',95,7,9,3],['Oat milk, 200 ml',90,2,13,3],
+ ['Cottage cheese, 100 g',100,11,3,4],['Mozzarella, 60 g',150,11,1,12],['Feta, 30 g',80,4,0,6],['Skyr, 150 g pot',95,16,6,0],['Granola, 45 g',200,4,28,8],['Cornflakes 30 g + milk',170,6,31,2],
+ ['Bagel, plain',250,10,48,2],['Croissant',270,5,28,15],['Wrap, tortilla 1 large',190,5,32,5],['Pitta, wholemeal',150,6,28,1],['Sourdough, 1 thick slice',130,5,25,1],['Noodles, egg, 150 g cooked',210,7,40,2],
+ ['Couscous, 150 g cooked',170,6,35,0],['Quinoa, 150 g cooked',180,7,30,3],['Chips, oven, 150 g',240,4,38,8],['Mashed potato, 180 g',180,3,28,6],['Broccoli, 80 g',27,3,3,0],['Carrots, 80 g',28,0,6,0],
+ ['Peas, 80 g',55,4,8,1],['Spinach, 80 g',20,2,1,0],['Tomato, medium',20,1,4,0],['Orange, medium',70,1,16,0],['Grapes, 80 g',55,0,14,0],['Blueberries, 80 g',45,1,10,0],['Strawberries, 80 g',26,1,5,0],
+ ['Almonds, 25 g',150,5,2,13],['Mixed nuts, 30 g',185,6,4,16],['Protein bar',200,20,18,7],['Cereal bar',120,2,20,4],['Digestive biscuit, 1',70,1,9,3],['Chocolate bar, 45 g milk',240,3,26,14],
+ ['Ice cream, 2 scoops',200,3,22,11],['Cappuccino',110,6,9,5],['Latte, semi-skimmed',150,9,13,6],['Tea with milk',15,1,1,0],['Orange juice, 200 ml',90,1,20,0],['Cola, 330 ml can',139,0,35,0],
+ ['Diet cola, 330 ml',1,0,0,0],['Gin and slimline tonic',60,0,0,0],['Glass of white wine, 175 ml',150,0,5,0],['Sushi, 8-piece box',320,12,58,4],['Chicken Caesar salad',450,35,15,28],
+ ['Soup, tomato, 400 g tin',180,3,26,7],['Omelette, 3 egg with cheese',400,27,1,32],['Beans on toast, 2 slices',350,16,58,4],['Egg fried rice, takeaway portion',600,14,90,20],
+ ['Chicken burger, takeaway',480,25,45,22],['Cheeseburger, takeaway',300,15,31,13],['Doner kebab, regular',750,35,60,40]
 ].map(a=>({name:a[0],kcal:a[1],p:a[2],c:a[3],f:a[4],starter:true}));
 
 /* ---------- state ---------- */
@@ -677,13 +688,13 @@ $('#foodForm').onsubmit=e=>{e.preventDefault(); const name=fName.value.trim(); c
 /* ---------- live food search (Open Food Facts → Claude) ---------- */
 let liveSample=null;
 (async()=>{try{if(window.claude&&typeof claude.use==='function') liveSample=await claude.use('sample');}catch(e){}})();
-function offSearch(q){const ctl=new AbortController(); const t=setTimeout(()=>ctl.abort(),8000);
-  return fetch('https://world.openfoodfacts.org/cgi/search.pl?search_terms='+encodeURIComponent(q)+'&search_simple=1&action=process&json=1&page_size=8&fields=product_name,brands,serving_size,nutriments,countries_tags',{signal:ctl.signal})
-    .then(r=>{if(!r.ok) throw new Error('HTTP '+r.status); return r.json();}).finally(()=>clearTimeout(t))
-    .then(j=>(j.products||[]).map(p=>{const n=p.nutriments||{}; const perS=n['energy-kcal_serving']!=null; const k=perS?n['energy-kcal_serving']:n['energy-kcal_100g'];
-      if(k==null) return null; const g=x=>{const v=perS?n[x+'_serving']:n[x+'_100g']; return v!=null?Math.round(v*10)/10:0;};
-      const nm=[p.brands?p.brands.split(',')[0].trim():'',p.product_name||''].filter(Boolean).join(' ');
-      return {name:nm+(perS&&p.serving_size?' ('+p.serving_size+')':' (100 g)'),kcal:Math.round(k),p:g('proteins'),c:g('carbohydrates'),f:g('fat'),src:'OFF'};}).filter(Boolean));}
+function offFetch(url,ms){const ctl=new AbortController(); const t=setTimeout(()=>ctl.abort(),ms); return fetch(url,{signal:ctl.signal}).then(r=>{if(!r.ok) throw new Error('HTTP '+r.status); return r.json();}).finally(()=>clearTimeout(t));}
+function offSearch(q){const F='product_name,brands,serving_size,nutriments', e=encodeURIComponent(q);
+  const runs=[offFetch('https://search.openfoodfacts.org/search?q='+e+'&page_size=10&fields='+F,12000).then(j=>j.hits||[]),
+              offFetch('https://world.openfoodfacts.org/cgi/search.pl?search_terms='+e+'&search_simple=1&action=process&json=1&page_size=10&fields='+F,25000).then(j=>j.products||[])]
+    .map(pr=>pr.then(arr=>{const m=arr.map(offMap).filter(Boolean).map(x=>Object.assign(x,{src:'OFF'})); if(!m.length) throw new Error('empty'); return m;}));
+  return new Promise((res,rej)=>{let fails=0, empty=0; runs.forEach(pr=>pr.then(res,err=>{fails++; if(err&&err.message==='empty') empty++; if(fails===runs.length) rej(new Error(empty?'empty':'unreachable'));}));});}
+function localSearch(q){const ts=q.toLowerCase().split(/[^a-z0-9]+/).filter(t=>t.length>1); if(!ts.length) return []; return allFoods().map(f=>({f,n:ts.filter(t=>f.name.toLowerCase().includes(t)).length})).filter(x=>x.n>0).sort((x,y)=>y.n-x.n||(y.f.uses||0)-(x.f.uses||0)).slice(0,8).map(x=>({name:x.f.name,kcal:x.f.kcal,p:x.f.p,c:x.f.c,f:x.f.f,src:x.f.starter?'built-in':'saved'}));}
 async function claudeSearch(q){const prompt='Give typical nutrition for the food "'+q.replace(/"/g,"'")+'" as eaten in the UK. Reply with only a JSON array of up to 5 objects {"name": food with portion e.g. "Chicken tikka masala, takeaway portion (350 g)", "kcal": number, "protein": g, "carbs": g, "fat": g}, each a plausible portion or variant. Numbers only, per the stated portion.';
   if(liveSample){const r=await liveSample.json(prompt,{modelTier:'quick'}); return (Array.isArray(r)?r:[]).map(x=>({name:String(x.name||q),kcal:Math.round(Number(x.kcal)||0),p:Number(x.protein)||0,c:Number(x.carbs)||0,f:Number(x.fat)||0,src:'Claude'}));}
   const key=state.settings.apiKey; if(!key) throw {code:'no_key'};
@@ -695,17 +706,15 @@ function showLive(hits){sl.innerHTML=''; hits.slice(0,8).forEach(f=>{const b=doc
   b.innerHTML='<span>'+esc(f.name)+' <span class="chip" style="font-size:10px">'+f.src+'</span></span><span class="n">'+f.kcal+' kcal</span>';
   b.onclick=()=>{fName.value=f.name; $('#fKcal').value=f.kcal; $('#fP').value=f.p; $('#fC').value=f.c; $('#fF').value=f.f; sl.classList.remove('on'); $('#fQty').focus();}; sl.appendChild(b);}); sl.classList.add('on');}
 $('#liveBtn').onclick=async()=>{const q=fName.value.trim(); const st=$('#liveStatus'); const btn=$('#liveBtn'); if(q.length<2){fName.focus();return;} if(/^\d{8,14}$/.test(q)){barLookup(q);return;}
-  btn.disabled=true; st.hidden=false; st.className='status'; st.textContent='Searching…'; sl.classList.remove('on');
-  try{let hits=[]; let via='';
-    try{hits=await offSearch(q); via='Open Food Facts';}catch(e){}
-    if(!hits.length){hits=await claudeSearch(q); via='Claude (typical values)';}
-    if(!hits.length) throw {code:'none'};
-    showLive(hits); st.className='status ok'; st.textContent=hits.length+' result'+(hits.length>1?'s':'')+' from '+via+'. Pick one, then set portions.';
-  }catch(e){st.className='status err'; const c=e&&e.code;
-    st.textContent=c==='no_key'?'No online source reachable here. Add an Anthropic API key under Set to search with Claude.':
-      c==='not_granted'||c==='sampling_disabled'?'Search with Claude is not allowed on this account.':c==='rate_limited'?'Too many searches; try again in a minute.':
-      c==='none'?'Nothing found for "'+q+'". Try a simpler name.':'Search failed ('+(e&&e.message||'offline')+').';}
-  finally{btn.disabled=false;}};
+  btn.disabled=true; st.hidden=false; st.className='status'; st.textContent='Searching… products can take up to 20 seconds.'; sl.classList.remove('on');
+  let hits=[], via='', why='', ai='';
+  try{hits=await offSearch(q); via='Open Food Facts';}catch(e){why=e&&e.message||'unreachable';}
+  if(!hits.length){try{hits=await claudeSearch(q); via='Claude (typical values)';}catch(e){ai=e&&e.code||'failed';}}
+  const online=hits.length>0; if(!online){hits=localSearch(q); via='your saved and built-in foods';}
+  const reason=why==='unreachable'?'The product database could not be reached'+(IN_VIEWER?' from inside Claude':'')+'.':'No product matched online.';
+  if(hits.length){showLive(hits); st.className='status ok'; st.textContent=online?hits.length+' result'+(hits.length>1?'s':'')+' from '+via+'. Pick one, then set portions.':reason+' Showing '+hits.length+' from '+via+'.';}
+  else{st.className='status err'; st.textContent=reason+' Nothing saved or built in matches “'+q+'” either. Try a simpler name'+(ai==='no_key'&&!IN_VIEWER?', or add an API key under Set for typical values of any food.':', or enter the values by hand.');}
+  btn.disabled=false;};
 
 /* ---------- photo a label → Claude reads it ---------- */
 const PROMPT='The photo is a food packet, ideally its nutrition label, or otherwise a food item or plate of food. Reply with only one JSON object: {"name": short product or food name, "serving": what one serving is e.g. "1 pot (150 g)" or "100 g", "kcal": kcal per serving, "protein": g per serving, "carbs": g per serving, "fat": g per serving, "source": "label" or "estimate", "note": one short remark, e.g. which column you used}. UK labels show per 100 g and often per serving: use the per-serving column when present, else use per 100 g and set serving to "100 g". Use kcal, never kJ. Numeric fields are plain numbers. If no food is visible, reply {"error": "what you see instead"}.';
@@ -882,7 +891,7 @@ function syncGrams(){const on=/\(100 ?g\)\s*$/i.test(fName.value); $('#fGramsWra
 fName.addEventListener('input',syncGrams); $('#fQty').addEventListener('focus',syncGrams);
 $('#fGrams').oninput=e=>{const g=num(e.target.value); if(g!=null&&g>0) $('#fQty').value=Math.round(g)/100;};
 function offMap(p){const n=p.nutriments||{}; const perS=n['energy-kcal_serving']!=null; const k=perS?n['energy-kcal_serving']:n['energy-kcal_100g']; if(k==null) return null;
-  const g=x=>{const v=perS?n[x+'_serving']:n[x+'_100g']; return v!=null?Math.round(v*10)/10:0;}; const nm=[p.brands?p.brands.split(',')[0].trim():'',p.product_name||''].filter(Boolean).join(' ')||'Product';
+  const g=x=>{const v=perS?n[x+'_serving']:n[x+'_100g']; return v!=null?Math.round(v*10)/10:0;}; const br=Array.isArray(p.brands)?String(p.brands[0]||''):(p.brands?String(p.brands).split(',')[0].trim():''); let pn=p.product_name; if(pn&&typeof pn==='object') pn=pn.en||pn.main||Object.values(pn)[0]; const nm=(pn&&br&&String(pn).toLowerCase().startsWith(br.toLowerCase())?[pn]:[br,pn||'']).filter(Boolean).join(' ')||'Product';
   return {name:nm+(perS&&p.serving_size?' ('+p.serving_size+')':' (100 g)'),kcal:Math.round(k),p:g('proteins'),c:g('carbohydrates'),f:g('fat')};}
 async function offCode(code){const r=await fetch('https://world.openfoodfacts.org/api/v2/product/'+code+'.json?fields=product_name,brands,serving_size,nutriments'); if(r.status===404) return null; if(!r.ok) throw new Error('HTTP '+r.status); const j=await r.json(); return j&&j.product?offMap(j.product):null;}
 let zxP=null; function loadZX(){return zxP||(zxP=new Promise((res,rej)=>{const s=document.createElement('script'); s.src='zxing.min.js'; s.onload=res; s.onerror=()=>{zxP=null; rej(new Error('scanner did not load'));}; document.head.appendChild(s);}));}
