@@ -221,7 +221,7 @@ nav.tabs button.on{color:var(--ink);border-top-color:var(--in)}
             <button type="button" class="btn ghost sm" id="liveBtn" title="Search online" style="white-space:nowrap">Search</button>
           </div>
           <div class="sugg-list" id="suggList"></div>
-          <select id="shop" aria-label="Shop to search" style="margin-top:6px;padding:6px 8px;font-size:13px"><option value="">Search any shop</option><option value="ms">M&amp;S only</option><option value="wr">Waitrose only</option></select>
+          <select id="shop" aria-label="Shop to search" style="margin-top:6px;padding:6px 8px;font-size:13px"><option value="">Search any shop</option><option value="ms">M&amp;S only</option><option value="wr">Waitrose only</option><option value="al">Aldi only</option><option value="oc">Ocado only</option></select>
           <div class="status" id="liveStatus" hidden></div>
         </div>
         <div class="field"><label for="fQty">Portions</label><input type="number" id="fQty" value="1" min="0.1" step="0.25"></div>
@@ -690,7 +690,7 @@ $('#foodForm').onsubmit=e=>{e.preventDefault(); const name=fName.value.trim(); c
 let liveSample=null;
 (async()=>{try{if(window.claude&&typeof claude.use==='function') liveSample=await claude.use('sample');}catch(e){}})();
 function offFetch(url,ms){const ctl=new AbortController(); const t=setTimeout(()=>ctl.abort(),ms); return fetch(url,{signal:ctl.signal}).then(r=>{if(!r.ok) throw new Error('HTTP '+r.status); return r.json();}).finally(()=>clearTimeout(t));}
-const SHOPS={ms:{name:'M&S',terms:'Marks Spencer',re:/marks|m\s*&\s*s|\bm-s\b|\bm and s\b/i},wr:{name:'Waitrose',terms:'Waitrose',re:/waitrose/i}};
+const SHOPS={ms:{name:'M&S',terms:'Marks Spencer',re:/marks|m\s*&\s*s|\bm-s\b|\bm and s\b/i},wr:{name:'Waitrose',terms:'Waitrose',re:/waitrose/i},al:{name:'Aldi',terms:'Aldi',re:/aldi/i},oc:{name:'Ocado',terms:'Ocado',re:/ocado/i}};
 const curShop=()=>SHOPS[$('#shop').value]||null;
 function offSearch(q,shop){const F='product_name,brands,stores,serving_size,nutriments', e=encodeURIComponent((shop?shop.terms+' ':'')+q);
   const runs=[offFetch('https://search.openfoodfacts.org/search?q='+e+'&page_size='+(shop?24:10)+'&fields='+F,12000).then(j=>j.hits||[]),
