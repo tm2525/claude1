@@ -684,6 +684,7 @@ $('#foodForm').onsubmit=e=>{e.preventDefault(); const name=fName.value.trim(); c
   const f={id:Date.now()+Math.random().toString(36).slice(2,6),name,kcal,p:num($('#fP').value)||0,c:num($('#fC').value)||0,f:num($('#fF').value)||0,qty:num($('#fQty').value)||1,h:new Date().getHours()};
   dayRec(cur).food.push(f);
   if($('#fSave').checked){const ex=state.library.find(x=>x.name.toLowerCase()===name.toLowerCase()); if(ex){Object.assign(ex,{kcal,p:f.p,c:f.c,f:f.f}); ex.uses=(ex.uses||0)+1;} else state.library.push({name,kcal,p:f.p,c:f.c,f:f.f,uses:1});}
+  if(pendCode&&Date.now()-pendCode.t<600000&&$('#fSave').checked){const it=state.library.find(x=>x.name.toLowerCase()===name.toLowerCase()); if(it){state.library.forEach(x=>{if(x.code===pendCode.code) delete x.code;}); it.code=pendCode.code;}} pendCode=null;
   save(); e.target.reset(); $('#fQty').value=1; render(); toast('Added · '+fmt(kcal*f.qty)+' kcal'); fName.focus();};
 
 /* ---------- live food search (Open Food Facts → Claude) ---------- */
@@ -764,7 +765,7 @@ async function readViaApi(file,prompt,maxTok){const key=state.settings.apiKey; i
 
 /* ---------- photo a meal → itemised calorie estimate ---------- */
 const MEAL_PROMPT='The photo or photos show one meal or plate of food; several photos are the same meal from different angles, so use them together to judge height and depth. If a bank card (85.6 by 54 mm), a fork (about 19 cm) or a hand is in shot, use it as a scale reference. Estimate the energy content. Identify each distinct component, estimate its portion in grams from visual cues (plate and cutlery size, depth, typical UK servings), and include cooking fats, dressings and sauces you can reasonably infer. Reply with only one JSON object: {"items": [{"name": short food name, "grams": estimated grams, "kcal": number, "protein": g, "carbs": g, "fat": g}], "low": plausible lower bound for total kcal, "high": plausible upper bound for total kcal, "note": one short sentence on the biggest uncertainty, "questions": [up to 3 of {"q": short question, "options": [2 to 4 short answers]}]}. Ask a question only where the answer would move the total by more than about 10 percent (cooking fat, portion size, a hidden ingredient, what a sauce or drink is); otherwise give an empty list. Numbers are plain numbers. If no food is visible, reply {"error": "what you see instead"}.';
-async function mealAsk(file,hint,answers){const prompt=MEAL_PROMPT+(answers?' The person has given these details: '+answers.slice(0,800)+' Use them and return an empty questions list.':'')+(hint?' The person describes it as: "'+hint.replace(/"/g,"'").slice(0,200)+'".':'');
+async function mealAsk(file,hint,answers){const prompt=MEAL_PROMPT+savedHint()+(answers?' The person has given these details: '+answers.slice(0,800)+' Use them and return an empty questions list.':'')+(hint?' The person describes it as: "'+hint.replace(/"/g,"'").slice(0,200)+'".':'');
   let s=null; try{if(window.claude&&typeof claude.use==='function') s=await claude.use('sample');}catch(e){}
   if(s){const lim=await s.limits().catch(()=>null); return s.json(prompt,{images:file.slice(0,lim&&lim.images?lim.images.maxCount:1)});}
   if(typeof readViaApi==='function') return readViaApi(file,prompt,1200);
@@ -882,7 +883,7 @@ function aiErr(e){const c=e&&e.code; return c==='no_key'?'Add your Anthropic API
 /* ---------- say it or type it ---------- */
 const SAY_PROMPT='The person says what they ate or drank: "{T}". Split it into separate items. Use the amounts given, otherwise typical UK portions. Reply with only one JSON object: {"items": [{"name": short food name, "grams": grams or ml, "kcal": number, "protein": g, "carbs": g, "fat": g}], "low": plausible lower bound for total kcal, "high": plausible upper bound, "note": one short sentence on the biggest uncertainty, "questions": [up to 2 of {"q": short question, "options": [2 to 4 short answers]}]}. Ask a question only where the answer would move the total by more than about 10 percent; otherwise give an empty list. Numbers are plain numbers. If it is not food or drink, reply {"error": "why"}.';
 async function runSay(text,answers){const st=$('#labelStatus'), btn=$('#sayBtn'); btn.disabled=true; st.hidden=false; st.className='status'; st.textContent=answers?'Updating…':'Working out what that is…';
-  try{const safe=text.replace(/"/g,"'").slice(0,500); const r=await textJSON(SAY_PROMPT.replace('{T}',()=>safe)+(answers?' Extra details from the person: '+answers.slice(0,600)+' Use them and return an empty questions list.':''),900);
+  try{const safe=text.replace(/"/g,"'").slice(0,500); const r=await textJSON(SAY_PROMPT.replace('{T}',()=>safe)+savedHint()+(answers?' Extra details from the person: '+answers.slice(0,600)+' Use them and return an empty questions list.':''),900);
     if(!r||r.error) throw {code:'nofood',message:r&&r.error||'nothing recognisable'};
     showMeal(r,a=>runSay(text,(answers?answers+' ':'')+a),'text'); st.className='status ok'; st.textContent='Check the items, then log.'; $('#sayText').value='';
   }catch(e){st.className='status err'; st.textContent=aiErr(e);}
@@ -905,11 +906,14 @@ async function decodeBar(file){
   try{await loadZX(); const rd=new ZXing.BrowserMultiFormatReader(); for(const max of [1400,900,2000]){try{const r=await rd.decodeFromImageUrl(await shrinkURL(file,max)); if(r) return r.getText();}catch(e){}}}catch(e){}
   try{const r=await visionJSON(file,'Read the number printed under the barcode in this photo. Reply with only {"code": "the digits, no spaces"} or {"error": "why not"}.',100); const c=r&&String(r.code||'').replace(/\D/g,''); if(/^\d{8,14}$/.test(c)) return c;}catch(e){}
   return null;}
+let pendCode=null;
+function savedHint(){const l=state.library.filter(f=>f.name&&f.kcal>=0).sort((a,b)=>(b.uses||0)-(a.uses||0)).slice(0,40); if(!l.length) return ''; return (' The person has saved these foods with values from the pack, written as name = kcal, protein g, carbs g, fat g per portion: '+l.map(f=>f.name.replace(/["=;]/g,' ').slice(0,60)+' = '+f.kcal+', '+f.p+', '+f.c+', '+f.f).join('; ')).slice(0,3000)+'. Where an item is clearly one of these, use that exact name and scale those values by the amount eaten instead of estimating.';}
 async function barLookup(code){const st=$('#labelStatus'); st.hidden=false; st.className='status'; st.textContent='Looking up '+code+'…';
-  try{const f=await offCode(code); if(!f){st.className='status err'; st.textContent='Barcode '+code+' has no nutrition data in Open Food Facts. Use Label photo for this one.'; return;}
+  const mine=state.library.find(x=>x.code===code); pendCode={code,t:Date.now()};
+  try{const f=mine?{name:mine.name,kcal:mine.kcal,p:mine.p,c:mine.c,f:mine.f}:await offCode(code); if(!f){st.className='status err'; st.textContent='Barcode '+code+' is not in the database. Use Label photo or type the values, then Add, and Stoke will remember it for this barcode.'; return;}
     fName.value=f.name; $('#fKcal').value=f.kcal; $('#fP').value=f.p; $('#fC').value=f.c; $('#fF').value=f.f; $('#fQty').value=1; sl.classList.remove('on'); syncGrams();
-    st.className='status ok'; st.textContent='Found '+f.name+'. '+($('#fGramsWrap').hidden?'Set portions':'Enter weighed grams or portions')+', then Add.'; (($('#fGramsWrap').hidden)?$('#fQty'):$('#fGrams')).focus();
-  }catch(e){st.className='status err'; st.textContent='Could not reach the product database ('+(e&&e.message||'offline')+').';}}
+    st.className='status ok'; st.textContent=(mine?'From your saved foods: ':'Found ')+f.name+'. '+($('#fGramsWrap').hidden?'Set portions':'Enter weighed grams or portions')+', then Add.'; (($('#fGramsWrap').hidden)?$('#fQty'):$('#fGrams')).focus();
+  }catch(e){st.className='status err'; st.textContent='Could not reach the product database ('+(e&&e.message||'offline')+'). Use Label photo or type the values, then Add, and Stoke will remember it for this barcode.';}}
 $('#barFile').addEventListener('change',async e=>{const inp=e.target, file=inp.files&&inp.files[0]; if(!file) return; const st=$('#labelStatus'), btn=$('#barBtn');
   btn.style.pointerEvents='none'; btn.style.opacity='.5'; st.hidden=false; st.className='status'; st.textContent='Reading the barcode…';
   try{const code=await decodeBar(file); if(!code){st.className='status err'; st.textContent='No barcode found. Fill the frame with the barcode, or type its number into Food and press Search.';} else await barLookup(code);}
