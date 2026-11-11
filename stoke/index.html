@@ -430,7 +430,8 @@ nav.tabs button.on{color:var(--ink);border-top-color:var(--in)}
     <div class="row" style="margin-top:10px;justify-content:space-between"><span class="small" id="calibNote"></span><button type="button" class="btn ghost sm" id="calibReset" hidden>Reset</button></div>
   </section>
   <section class="card">
-    <div class="sec-head"><h2>Macro targets</h2><span class="small faint">grams a day</span></div>
+    <div class="sec-head"><h2>Macro targets</h2><span class="small faint" id="mtUnit">grams a day</span></div>
+    <div class="field" style="margin-bottom:10px"><label for="mtMode">Set targets as</label><select id="mtMode"><option value="g">Grams a day</option><option value="pct">% of calories</option></select></div>
     <div class="grid g3">
       <div class="field"><label for="mt_p">Protein</label><input type="number" id="mt_p" min="0" step="5"></div>
       <div class="field"><label for="mt_c">Carbs</label><input type="number" id="mt_c" min="0" step="5"></div>
@@ -471,6 +472,9 @@ const IN_VIEWER=!!(window.claude&&typeof window.claude.use==='function');
 let EST=null, editId=null;
 const W=()=>state.weights||(state.weights={});
 const MAC=()=>state.settings.macro||(state.settings.macro={p:0,c:0,f:0});
+const MPCT=()=>state.settings.macroPct||(state.settings.macroPct={p:30,c:40,f:30});
+const pctMode=()=>state.settings.macroMode==='pct';
+function macroTargets(key){if(!pctMode()) return MAC(); const t=targetFor(key,burnFor(key).kcal), q=MPCT(); return {p:Math.round(t*q.p/400),c:Math.round(t*q.c/400),f:Math.round(t*q.f/900)};}
 const eatBack=()=>state.settings.eatBack==null?100:Math.max(0,Number(state.settings.eatBack)||0);
 const SRC=['oura','garmin','apple'];
 const SRC_NAME={oura:'Oura',garmin:'Garmin',apple:'Apple Watch',bmr:'BMR',mean:'Mean',bmrx:'BMR + ex',measured:'Measured'};
@@ -586,7 +590,7 @@ function renderDay(){
       log.appendChild(el);});
   }
   const m=d.food.reduce((a,f)=>({p:a.p+f.p*f.qty,c:a.c+f.c*f.qty,f:a.f+f.f*f.qty}),{p:0,c:0,f:0});
-  const mt=MAC(); $('#mP').innerHTML=macHTML(m.p,mt.p); $('#mC').innerHTML=macHTML(m.c,mt.c); $('#mF').innerHTML=macHTML(m.f,mt.f);
+  const mt=macroTargets(cur), mk=4*m.p+4*m.c+9*m.f, sh=(x,k)=>pctMode()&&mk>0?Math.round(x*k/mk*100):null; $('#mP').innerHTML=macHTML(m.p,mt.p,sh(m.p,4)); $('#mC').innerHTML=macHTML(m.c,mt.c,sh(m.c,4)); $('#mF').innerHTML=macHTML(m.f,mt.f,sh(m.f,9));
   // burn table
   const b=burnFor(cur); const t=$('#burnTable'); let h='<tr><th>Source</th><th style="text-align:right">Active</th><th style="text-align:right">Total</th></tr>';
   SRC.forEach(k=>{const r=(d.burn||{})[k]||{}; const tot=srcTotal(d,k); const act=r.active;
@@ -865,15 +869,16 @@ $('#bkSample').onclick=()=>{const picks=[0,1,3,5,8,11,13,16,19,24,26,29,31,33]; 
   save(); render(); $('#bkStatus').className='status ok'; $('#bkStatus').textContent='Sample days added for the last week (example figures, not yours). Delete entries from the Day view to clear them.'; toast('Sample week loaded');};
 
 /* ---------- macros, entry editing ---------- */
-function macHTML(v,t){v=Math.round(v); t=Number(t)||0; return t>0?v+'<small> / '+t+' g</small><div style="height:4px;background:var(--rule);border-radius:2px;margin-top:6px"><div style="height:100%;width:'+Math.min(100,v/t*100)+'%;background:var(--ink-2);border-radius:2px"></div></div>':v+'<small> g</small>';}
+function macHTML(v,t,sh){v=Math.round(v); t=Number(t)||0; const s2=sh!=null?'<small> · '+sh+'%</small>':''; return t>0?v+'<small> / '+t+' g</small>'+s2+'<div style="height:4px;background:var(--rule);border-radius:2px;margin-top:6px"><div style="height:100%;width:'+Math.min(100,v/t*100)+'%;background:var(--ink-2);border-radius:2px"></div></div>':v+'<small> g</small>'+s2;}
 function editRow(f){const w=document.createElement('div'); w.className='note'; w.style.margin='4px 0 8px';
   w.innerHTML='<div class="field"><label for="ed_name">Name</label><input type="text" id="ed_name" data-k="name"></div><div class="grid g3" style="margin-top:8px">'+[['qty','Portions','0.25'],['kcal','kcal each','1'],['p','Protein g','0.5'],['c','Carbs g','0.5'],['f','Fat g','0.5']].map(a=>'<div class="field"><label for="ed_'+a[0]+'">'+a[1]+'</label><input type="number" id="ed_'+a[0]+'" min="0" step="'+a[2]+'" data-k="'+a[0]+'"></div>').join('')+'</div><div class="row" style="margin-top:8px"><button type="button" class="btn sm" data-a="save">Save</button><button type="button" class="btn ghost sm" data-a="cancel">Cancel</button></div>';
   w.querySelectorAll('[data-k]').forEach(i=>{i.value=f[i.dataset.k];});
   w.querySelector('[data-a=cancel]').onclick=()=>{editId=null; renderDay();};
   w.querySelector('[data-a=save]').onclick=()=>{w.querySelectorAll('[data-k]').forEach(i=>{const k=i.dataset.k; if(k==='name'){if(i.value.trim()) f.name=i.value.trim();} else {const v=num(i.value); if(v!=null&&v>=0) f[k]=(k==='qty'&&v===0)?f.qty:v;}}); editId=null; save(); render(); toast('Entry updated');};
   return w;}
-['p','c','f'].forEach(k=>{$('#mt_'+k).onchange=e=>{MAC()[k]=Math.max(0,num(e.target.value)||0); save(); render();};});
-$('#mtFit').onclick=()=>{const m=MAC(); const t=targetFor(cur,burnFor(cur).kcal); m.c=Math.max(0,Math.round((t-4*m.p-9*m.f)/4/5)*5); save(); render(); toast('Carbs set to '+m.c+' g');};
+['p','c','f'].forEach(k=>{$('#mt_'+k).onchange=e=>{(pctMode()?MPCT():MAC())[k]=Math.max(0,num(e.target.value)||0); save(); render();};});
+$('#mtFit').onclick=()=>{if(pctMode()){const q=MPCT(); q.c=Math.max(0,100-q.p-q.f); save(); render(); toast('Carbs set to '+q.c+'%');} else {const m=MAC(); const t=targetFor(cur,burnFor(cur).kcal); m.c=Math.max(0,Math.round((t-4*m.p-9*m.f)/4/5)*5); save(); render(); toast('Carbs set to '+m.c+' g');}};
+$('#mtMode').onchange=e=>{state.settings.macroMode=e.target.value; save(); render();};
 $('#sEat').onchange=e=>{state.settings.eatBack=Math.min(100,Math.max(0,num(e.target.value)||0)); save(); render();};
 $('#sBank').onchange=e=>{state.settings.bank=e.target.checked; save(); render(); toast(e.target.checked?'Weekly banking on':'Weekly banking off');};
 
@@ -975,8 +980,10 @@ function renderMore(){
     note.textContent='Over the last 4 weeks you ate about '+fmt(E.avgIn)+' kcal a day on logged days and your weight trend was '+(wkly<0?'−':'+')+Math.abs(wkly).toFixed(2)+' kg a week. That puts your real burn near '+fmt(E.tdee)+' kcal a day'+(E.wornAvg?', against '+fmt(E.wornAvg)+' from your wearable':'')+'. It assumes unlogged days looked like logged ones, and water weight makes any single fortnight noisy.';
     use.hidden=state.settings.source==='measured';}
   else{chip.textContent='needs data'; chip.className='chip'; use.hidden=true; note.textContent='Needs 4 weigh-ins spread over at least two weeks and 10 logged days in the last four weeks. So far: '+E.w+' weigh-in'+(E.w===1?'':'s')+', '+E.logged+' logged day'+(E.logged===1?'':'s')+'. Weigh at the same time of day for a cleaner trend.';}
-  const m=MAC(); ['p','c','f'].forEach(k=>{const el=$('#mt_'+k); if(document.activeElement!==el) el.value=m[k]||'';});
-  const kc=m.p*4+m.c*4+m.f*9; $('#mtNote').textContent=kc?'These add up to '+fmt(kc)+' kcal, against today’s target of '+fmt(targetFor(cur,burnFor(cur).kcal))+'. The Day tab shows progress against each. Tap any logged food to change its macros.':'Leave blank for no target. Tap any logged food on the Day tab to change its macros.';
+  const pm=pctMode(), m=pm?MPCT():MAC(); $('#mtMode').value=pm?'pct':'g'; $('#mtUnit').textContent=pm?'% of calories':'grams a day'; ['p','c','f'].forEach(k=>{const el=$('#mt_'+k); if(document.activeElement!==el) el.value=m[k]||'';});
+  const tgt=targetFor(cur,burnFor(cur).kcal), tail=' Tap any logged food on the Day tab to change its macros.';
+  if(pm){const sum=m.p+m.c+m.f, g=macroTargets(cur); $('#mtNote').textContent=(sum===100?'Adds up to 100%.':'Adds up to '+sum+'%, not 100. Adjust, or use the button to fit carbs.')+' At today’s target of '+fmt(tgt)+' kcal that is '+g.p+' g protein, '+g.c+' g carbs and '+g.f+' g fat, and it moves when exercise raises the target.'+tail;}
+  else{const kc=m.p*4+m.c*4+m.f*9; $('#mtNote').textContent=kc?'These add up to '+fmt(kc)+' kcal, against today’s target of '+fmt(tgt)+'.'+tail:'Leave blank for no target.'+tail;}
   if(document.activeElement!==$('#shop')) $('#shop').value=state.settings.shop||''; $('#sEat').value=eatBack(); $('#keyCard').hidden=IN_VIEWER; syncGrams(); renderEx(); renderQuick(); renderWare(); const n=Object.values(state.days).reduce((a,d)=>a+d.food.length,0); if(state.fast&&foodN!=null&&n>foodN) endFast(true); foodN=n; renderFast();}
 
 $('#shop').onchange=e=>{state.settings.shop=e.target.value; save();};
