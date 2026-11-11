@@ -671,32 +671,37 @@ async function readViaApi(file,prompt,maxTok){const key=state.settings.apiKey; i
 })();
 
 /* ---------- photo a meal → itemised calorie estimate ---------- */
-const MEAL_PROMPT='The photo shows a meal or plate of food. Estimate its energy content. Identify each distinct component, estimate its portion in grams from visual cues (plate and cutlery size, depth, typical UK servings), and include cooking fats, dressings and sauces you can reasonably infer. Reply with only one JSON object: {"items": [{"name": short food name, "grams": estimated grams, "kcal": number, "protein": g, "carbs": g, "fat": g}], "low": plausible lower bound for total kcal, "high": plausible upper bound for total kcal, "note": one short sentence on the biggest uncertainty}. Numbers are plain numbers. If no food is visible, reply {"error": "what you see instead"}.';
-async function mealAsk(file,hint){const prompt=MEAL_PROMPT+(hint?' The person describes it as: "'+hint.replace(/"/g,"'").slice(0,200)+'".':'');
+const MEAL_PROMPT='The photo shows a meal or plate of food. Estimate its energy content. Identify each distinct component, estimate its portion in grams from visual cues (plate and cutlery size, depth, typical UK servings), and include cooking fats, dressings and sauces you can reasonably infer. Reply with only one JSON object: {"items": [{"name": short food name, "grams": estimated grams, "kcal": number, "protein": g, "carbs": g, "fat": g}], "low": plausible lower bound for total kcal, "high": plausible upper bound for total kcal, "note": one short sentence on the biggest uncertainty, "questions": [up to 3 of {"q": short question, "options": [2 to 4 short answers]}]}. Ask a question only where the answer would move the total by more than about 10 percent (cooking fat, portion size, a hidden ingredient, what a sauce or drink is); otherwise give an empty list. Numbers are plain numbers. If no food is visible, reply {"error": "what you see instead"}.';
+async function mealAsk(file,hint,answers){const prompt=MEAL_PROMPT+(answers?' The person has given these details: '+answers.slice(0,800)+' Use them and return an empty questions list.':'')+(hint?' The person describes it as: "'+hint.replace(/"/g,"'").slice(0,200)+'".':'');
   let s=null; try{if(window.claude&&typeof claude.use==='function') s=await claude.use('sample');}catch(e){}
   if(s) return s.json(prompt,{images:[file]});
-  if(typeof readViaApi==='function') return readViaApi(file,prompt,900);
+  if(typeof readViaApi==='function') return readViaApi(file,prompt,1200);
   throw {code:'no_key'};}
-function showMeal(r){const box=$('#mealPanel');
+function showMeal(r,refine){const box=$('#mealPanel');
   const items=(Array.isArray(r.items)?r.items:[]).map(x=>({name:String(x.name||'Item')+(Number(x.grams)?' (~'+Math.round(Number(x.grams))+' g)':''),kcal:Math.round(Number(x.kcal)||0),p:Number(x.protein)||0,c:Number(x.carbs)||0,f:Number(x.fat)||0})).filter(x=>x.kcal>0);
   if(!items.length) throw {code:'nofood',message:'no food items recognised'};
   let h='<div class="sec-head" style="margin-bottom:4px"><span class="eyebrow">Meal estimate</span><span class="num" id="mealTotal" style="color:var(--in);font-weight:600"></span></div>';
   items.forEach((x,i)=>{h+='<div style="display:grid;grid-template-columns:auto 1fr 84px;gap:8px;align-items:center;padding:6px 0;border-bottom:1px dashed var(--rule)"><input type="checkbox" id="mealC'+i+'" checked><label for="mealC'+i+'" style="min-width:0;overflow-wrap:anywhere;color:var(--ink)">'+esc(x.name)+'</label><input type="number" id="mealK'+i+'" value="'+x.kcal+'" min="0" step="5" aria-label="kcal"></div>';});
   const lo=Number(r.low),hi=Number(r.high);
   h+='<p style="margin:8px 0">'+(lo>0&&hi>lo?'Plausible range '+fmt(lo)+'–'+fmt(hi)+' kcal. ':'')+(r.note?esc(String(r.note))+' ':'')+'Photo estimates can be off by a quarter or more; change any figure you know better.</p>';
-  h+='<div class="row"><button type="button" class="btn in sm" id="mealLog">Log selected</button><button type="button" class="btn ghost sm" id="mealDrop">Dismiss</button></div>';
+  const qs=(refine&&Array.isArray(r.questions)?r.questions:[]).slice(0,3).map(q=>({q:String(q&&q.q||''),o:(Array.isArray(q&&q.options)?q.options:[]).slice(0,4).map(String)})).filter(q=>q.q);
+  const ql='font-family:var(--body);font-size:14px;letter-spacing:0;text-transform:none;color:var(--ink);font-weight:500';
+  qs.forEach((q,i)=>{h+='<div class="field" style="margin:8px 0"><label for="mealQ'+i+'" style="'+ql+'">'+esc(q.q)+'</label><select id="mealQ'+i+'"><option value="">Not sure</option>'+q.o.map(o=>'<option>'+esc(o)+'</option>').join('')+'</select></div>';});
+  if(refine) h+='<div class="field" style="margin:8px 0"><label for="mealMore" style="'+ql+'">Anything to add?</label><input type="text" id="mealMore" placeholder="e.g. fried in butter, large bowl, ate half"></div>';
+  h+='<div class="row">'+(refine?'<button type="button" class="btn sm" id="mealRefine">Update estimate</button>':'')+'<button type="button" class="btn in sm" id="mealLog">Log selected</button><button type="button" class="btn ghost sm" id="mealDrop">Dismiss</button></div>';
   box.innerHTML=h; box.hidden=false;
   const tot=()=>{let t=0; items.forEach((x,i)=>{if($('#mealC'+i).checked) t+=Number($('#mealK'+i).value)||0;}); $('#mealTotal').textContent=fmt(t)+' kcal';};
   box.querySelectorAll('input').forEach(el=>el.addEventListener('input',tot)); tot();
+  if(refine) $('#mealRefine').onclick=()=>{const more=$('#mealMore').value.trim(); const a=(qs.map((q,i)=>{const v=$('#mealQ'+i).value; return v?q.q+' '+v+'.':'';}).join(' ')+(more?' Also: '+more+'.':'')).trim(); if(!a){$('#mealMore').focus();return;} refine(a);};
   $('#mealDrop').onclick=()=>{box.hidden=true; box.innerHTML=''; $('#labelStatus').hidden=true;};
   $('#mealLog').onclick=()=>{let n=0,t=0; const d=dayRec(cur); items.forEach((x,i)=>{if(!$('#mealC'+i).checked) return; const k=Math.round(Number($('#mealK'+i).value)||0); const s=x.kcal?k/x.kcal:1;
       d.food.push({id:Date.now()+'m'+i,name:x.name,kcal:k,p:Math.round(x.p*s*10)/10,c:Math.round(x.c*s*10)/10,f:Math.round(x.f*s*10)/10,qty:1,h:new Date().getHours()}); n++; t+=k;});
     if(!n) return; save(); box.hidden=true; box.innerHTML=''; $('#labelStatus').hidden=true; render(); toast('Logged '+n+' item'+(n>1?'s':'')+' · '+fmt(t)+' kcal');};}
 (()=>{const inp=$('#mealFile'), st=$('#labelStatus'), btn=$('#mealBtn'); if(!inp) return;
-  inp.addEventListener('change',async()=>{const file=inp.files&&inp.files[0]; if(!file) return;
-    btn.style.pointerEvents='none'; btn.style.opacity='.5'; st.hidden=false; st.className='status'; st.textContent='Estimating the meal… this can take up to a minute.';
-    try{const r=await mealAsk(file,fName.value.trim()); if(!r||r.error) throw {code:'nofood',message:r&&r.error||'nothing recognisable'};
-      showMeal(r); st.className='status ok'; st.textContent='Estimated from the photo. Check the items, then log.';
+  const run=async(file,hint,answers)=>{
+    btn.style.pointerEvents='none'; btn.style.opacity='.5'; st.hidden=false; st.className='status'; st.textContent=(answers?'Updating the estimate':'Estimating the meal')+'… this can take up to a minute.';
+    try{const r=await mealAsk(file,hint,answers); if(!r||r.error) throw {code:'nofood',message:r&&r.error||'nothing recognisable'};
+      showMeal(r,a=>run(file,hint,(answers?answers+' ':'')+a)); st.className='status ok'; st.textContent=answers?'Estimate updated with your details.':'Estimated from the photo. Answer the questions to sharpen it, or log as is.';
     }catch(e){st.className='status err'; const c=e&&e.code;
       st.textContent=c==='no_key'?'Add your Anthropic API key under Set to enable meal photos.':c==='bad_key'?'API key rejected; check it under Set.':
         c==='not_granted'||c==='sampling_disabled'?'Photo estimates are not allowed on this account; type the values instead.':
@@ -704,7 +709,8 @@ function showMeal(r){const box=$('#mealPanel');
         c==='nofood'?'No meal found in that photo ('+e.message+').':c==='invalid_json'?'Could not turn that photo into numbers; try a clearer shot from above.':
         'Could not estimate that photo ('+(e&&e.message||'network blocked or offline')+').';}
     finally{btn.style.pointerEvents='';btn.style.opacity='';inp.value='';}
-  });})();
+  };
+  inp.addEventListener('change',()=>{const file=inp.files&&inp.files[0]; if(file) run(file,fName.value.trim());});})();
 
 /* ---------- library ---------- */
 function renderLib(){const q=$('#libSearch').value.trim().toLowerCase(); const list=$('#libList'); list.innerHTML='';
