@@ -197,9 +197,17 @@ nav.tabs button.on{color:var(--ink);border-top-color:var(--in)}
 <main>
 <!-- DAY -->
 <div class="view on" id="v-day">
+  <section class="card" style="padding:10px 14px">
+    <div class="row" style="justify-content:space-between;flex-wrap:nowrap">
+      <div style="min-width:0"><div class="eyebrow">Fast</div><div class="num" id="fastState" style="font-size:18px;font-weight:600">Not fasting</div><div class="small faint" id="fastSub"></div></div>
+      <button type="button" class="btn sm" id="fastBtn">Start fast</button>
+    </div>
+    <div class="field" id="fastEdit" style="margin-top:8px" hidden><label for="fastStart">Started</label><input type="datetime-local" id="fastStart"></div>
+  </section>
+
   <section class="card">
     <div class="sec-head" style="flex-wrap:wrap"><h2>Log food</h2>
-      <div class="row" id="labelRow" hidden><label class="btn ghost sm" for="mealFile" id="mealBtn" style="cursor:pointer">Meal photo</label><input type="file" id="mealFile" accept="image/*" hidden><label class="btn ghost sm" for="labelFile" id="labelBtn" style="cursor:pointer">Label photo</label><input type="file" id="labelFile" accept="image/*" capture="environment" hidden><label class="btn ghost sm" for="barFile" id="barBtn" style="cursor:pointer">Barcode</label><input type="file" id="barFile" accept="image/*" capture="environment" hidden></div></div>
+      <div class="row" id="labelRow" hidden><label class="btn ghost sm" for="mealFile" id="mealBtn" style="cursor:pointer">Meal photo</label><input type="file" id="mealFile" accept="image/*" multiple hidden><input type="file" id="mealFile2" accept="image/*" hidden><label class="btn ghost sm" for="labelFile" id="labelBtn" style="cursor:pointer">Label photo</label><input type="file" id="labelFile" accept="image/*" capture="environment" hidden><label class="btn ghost sm" for="barFile" id="barBtn" style="cursor:pointer">Barcode</label><input type="file" id="barFile" accept="image/*" capture="environment" hidden></div></div>
     <div class="row" style="gap:6px;flex-wrap:nowrap;margin-bottom:8px"><input type="text" id="sayText" placeholder="Type or dictate: two eggs on toast, flat white" style="flex:1;min-width:0" autocomplete="off"><button type="button" class="btn sm" id="sayBtn" style="white-space:nowrap">Log it</button></div>
     <div class="row" id="quickRow" style="gap:6px;margin-bottom:8px" hidden></div>
     <div class="status" id="labelStatus" hidden></div>
@@ -704,9 +712,9 @@ const PROMPT='The photo is a food packet, ideally its nutrition label, or otherw
 function parseLoose(t){try{return JSON.parse(t);}catch(e){} const m=t.match(/```(?:json)?\s*([\s\S]*?)```/); if(m){try{return JSON.parse(m[1]);}catch(e){}} const a=t.indexOf('{'),b=t.lastIndexOf('}'); if(a>=0&&b>a){try{return JSON.parse(t.slice(a,b+1));}catch(e){}} throw {code:'invalid_json',message:'no JSON in reply'};}
 function shrink(file){return new Promise((res,rej)=>{const img=new Image(); const url=URL.createObjectURL(file); img.onload=()=>{URL.revokeObjectURL(url); const max=1568; let w=img.width,h=img.height; const s=Math.min(1,max/Math.max(w,h)); w=Math.round(w*s); h=Math.round(h*s); const c=document.createElement('canvas'); c.width=w;c.height=h; c.getContext('2d').drawImage(img,0,0,w,h); const data=c.toDataURL('image/jpeg',0.85); res(data.split(',')[1]);}; img.onerror=()=>{URL.revokeObjectURL(url);rej({code:'image_rejected',message:'could not decode image'});}; img.src=url;});}
 async function readViaApi(file,prompt,maxTok){const key=state.settings.apiKey; if(!key) throw {code:'no_key'};
-  const b64=await shrink(file);
+  const imgs=[]; for(const f of (Array.isArray(file)?file:[file])) imgs.push({type:'image',source:{type:'base64',media_type:'image/jpeg',data:await shrink(f)}});
   const r=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'content-type':'application/json','x-api-key':key,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
-    body:JSON.stringify({model:'claude-sonnet-5-5',max_tokens:maxTok||400,messages:[{role:'user',content:[{type:'image',source:{type:'base64',media_type:'image/jpeg',data:b64}},{type:'text',text:prompt||PROMPT}]}]})});
+    body:JSON.stringify({model:'claude-sonnet-5-5',max_tokens:maxTok||400,messages:[{role:'user',content:[...imgs,{type:'text',text:prompt||PROMPT}]}]})});
   if(r.status===401) throw {code:'bad_key',message:'API key rejected'}; if(r.status===429) throw {code:'rate_limited'}; if(!r.ok) throw {code:'upstream_error',message:'HTTP '+r.status};
   const j=await r.json(); const t=(j.content||[]).filter(c=>c.type==='text').map(c=>c.text).join('\n'); return parseLoose(t);}
 (async()=>{
@@ -742,10 +750,10 @@ async function readViaApi(file,prompt,maxTok){const key=state.settings.apiKey; i
 })();
 
 /* ---------- photo a meal → itemised calorie estimate ---------- */
-const MEAL_PROMPT='The photo shows a meal or plate of food. Estimate its energy content. Identify each distinct component, estimate its portion in grams from visual cues (plate and cutlery size, depth, typical UK servings), and include cooking fats, dressings and sauces you can reasonably infer. Reply with only one JSON object: {"items": [{"name": short food name, "grams": estimated grams, "kcal": number, "protein": g, "carbs": g, "fat": g}], "low": plausible lower bound for total kcal, "high": plausible upper bound for total kcal, "note": one short sentence on the biggest uncertainty, "questions": [up to 3 of {"q": short question, "options": [2 to 4 short answers]}]}. Ask a question only where the answer would move the total by more than about 10 percent (cooking fat, portion size, a hidden ingredient, what a sauce or drink is); otherwise give an empty list. Numbers are plain numbers. If no food is visible, reply {"error": "what you see instead"}.';
+const MEAL_PROMPT='The photo or photos show one meal or plate of food; several photos are the same meal from different angles, so use them together to judge height and depth. If a bank card (85.6 by 54 mm), a fork (about 19 cm) or a hand is in shot, use it as a scale reference. Estimate the energy content. Identify each distinct component, estimate its portion in grams from visual cues (plate and cutlery size, depth, typical UK servings), and include cooking fats, dressings and sauces you can reasonably infer. Reply with only one JSON object: {"items": [{"name": short food name, "grams": estimated grams, "kcal": number, "protein": g, "carbs": g, "fat": g}], "low": plausible lower bound for total kcal, "high": plausible upper bound for total kcal, "note": one short sentence on the biggest uncertainty, "questions": [up to 3 of {"q": short question, "options": [2 to 4 short answers]}]}. Ask a question only where the answer would move the total by more than about 10 percent (cooking fat, portion size, a hidden ingredient, what a sauce or drink is); otherwise give an empty list. Numbers are plain numbers. If no food is visible, reply {"error": "what you see instead"}.';
 async function mealAsk(file,hint,answers){const prompt=MEAL_PROMPT+(answers?' The person has given these details: '+answers.slice(0,800)+' Use them and return an empty questions list.':'')+(hint?' The person describes it as: "'+hint.replace(/"/g,"'").slice(0,200)+'".':'');
   let s=null; try{if(window.claude&&typeof claude.use==='function') s=await claude.use('sample');}catch(e){}
-  if(s) return s.json(prompt,{images:[file]});
+  if(s){const lim=await s.limits().catch(()=>null); return s.json(prompt,{images:file.slice(0,lim&&lim.images?lim.images.maxCount:1)});}
   if(typeof readViaApi==='function') return readViaApi(file,prompt,1200);
   throw {code:'no_key'};}
 function showMeal(r,refine,kind){const box=$('#mealPanel');
@@ -759,7 +767,7 @@ function showMeal(r,refine,kind){const box=$('#mealPanel');
   const ql='font-family:var(--body);font-size:14px;letter-spacing:0;text-transform:none;color:var(--ink);font-weight:500';
   qs.forEach((q,i)=>{h+='<div class="field" style="margin:8px 0"><label for="mealQ'+i+'" style="'+ql+'">'+esc(q.q)+'</label><select id="mealQ'+i+'"><option value="">Not sure</option>'+q.o.map(o=>'<option>'+esc(o)+'</option>').join('')+'</select></div>';});
   if(refine) h+='<div class="field" style="margin:8px 0"><label for="mealMore" style="'+ql+'">Anything to add?</label><input type="text" id="mealMore" placeholder="e.g. fried in butter, large bowl, ate half"></div>';
-  h+='<div class="row">'+(refine?'<button type="button" class="btn sm" id="mealRefine">Update estimate</button>':'')+'<button type="button" class="btn in sm" id="mealLog">Log selected</button><button type="button" class="btn ghost sm" id="mealDrop">Dismiss</button></div>';
+  h+='<div class="row">'+(refine?'<button type="button" class="btn sm" id="mealRefine">Update estimate</button>':'')+(kind==='photo+'?'<label class="btn ghost sm" for="mealFile2" style="cursor:pointer">Add side photo</label>':'')+'<button type="button" class="btn in sm" id="mealLog">Log selected</button><button type="button" class="btn ghost sm" id="mealDrop">Dismiss</button></div>';
   box.innerHTML=h; box.hidden=false;
   const tot=()=>{let t=0; items.forEach((x,i)=>{if($('#mealC'+i).checked) t+=Number($('#mealK'+i).value)||0;}); $('#mealTotal').textContent=fmt(t)+' kcal';};
   box.querySelectorAll('input').forEach(el=>el.addEventListener('input',tot)); tot();
@@ -769,10 +777,10 @@ function showMeal(r,refine,kind){const box=$('#mealPanel');
       d.food.push({id:Date.now()+'m'+i,name:x.name,kcal:k,p:Math.round(x.p*s*10)/10,c:Math.round(x.c*s*10)/10,f:Math.round(x.f*s*10)/10,qty:1,h:new Date().getHours()}); n++; t+=k;});
     if(!n) return; save(); box.hidden=true; box.innerHTML=''; $('#labelStatus').hidden=true; render(); toast('Logged '+n+' item'+(n>1?'s':'')+' · '+fmt(t)+' kcal');};}
 (()=>{const inp=$('#mealFile'), st=$('#labelStatus'), btn=$('#mealBtn'); if(!inp) return;
-  const run=async(file,hint,answers)=>{
+  let last=null; const run=async(file,hint,answers)=>{last={file,hint,answers};
     btn.style.pointerEvents='none'; btn.style.opacity='.5'; st.hidden=false; st.className='status'; st.textContent=(answers?'Updating the estimate':'Estimating the meal')+'… this can take up to a minute.';
     try{const r=await mealAsk(file,hint,answers); if(!r||r.error) throw {code:'nofood',message:r&&r.error||'nothing recognisable'};
-      showMeal(r,a=>run(file,hint,(answers?answers+' ':'')+a)); st.className='status ok'; st.textContent=answers?'Estimate updated with your details.':'Estimated from the photo. Answer the questions to sharpen it, or log as is.';
+      showMeal(r,a=>run(file,hint,(answers?answers+' ':'')+a),file.length<3?'photo+':'photo'); st.className='status ok'; st.textContent=answers?'Estimate updated with your details.':'Estimated from '+(file.length>1?file.length+' photos':'the photo')+'. A bank card or fork in shot, or a side photo, sharpens portions.';
     }catch(e){st.className='status err'; const c=e&&e.code;
       st.textContent=c==='no_key'?'Add your Anthropic API key under Set to enable meal photos.':c==='bad_key'?'API key rejected; check it under Set.':
         c==='not_granted'||c==='sampling_disabled'?'Photo estimates are not allowed on this account; type the values instead.':
@@ -781,7 +789,8 @@ function showMeal(r,refine,kind){const box=$('#mealPanel');
         'Could not estimate that photo ('+(e&&e.message||'network blocked or offline')+').';}
     finally{btn.style.pointerEvents='';btn.style.opacity='';inp.value='';}
   };
-  inp.addEventListener('change',()=>{const file=inp.files&&inp.files[0]; if(file) run(file,fName.value.trim());});})();
+  inp.addEventListener('change',()=>{const fs=[...(inp.files||[])].slice(0,3); if(fs.length) run(fs,fName.value.trim());});
+  $('#mealFile2').addEventListener('change',e=>{const f=e.target.files&&e.target.files[0]; e.target.value=''; if(f&&last) run(last.file.concat(f).slice(0,3),last.hint,last.answers);});})();
 
 /* ---------- library ---------- */
 function renderLib(){const q=$('#libSearch').value.trim().toLowerCase(); const list=$('#libList'); list.innerHTML='';
@@ -918,7 +927,19 @@ function renderMore(){
   else{chip.textContent='needs data'; chip.className='chip'; use.hidden=true; note.textContent='Needs 4 weigh-ins spread over at least two weeks and 10 logged days in the last four weeks. So far: '+E.w+' weigh-in'+(E.w===1?'':'s')+', '+E.logged+' logged day'+(E.logged===1?'':'s')+'. Weigh at the same time of day for a cleaner trend.';}
   const m=MAC(); ['p','c','f'].forEach(k=>{const el=$('#mt_'+k); if(document.activeElement!==el) el.value=m[k]||'';});
   const kc=m.p*4+m.c*4+m.f*9; $('#mtNote').textContent=kc?'These add up to '+fmt(kc)+' kcal, against today’s target of '+fmt(targetFor(cur,burnFor(cur).kcal))+'. The Day tab shows progress against each. Tap any logged food to change its macros.':'Leave blank for no target. Tap any logged food on the Day tab to change its macros.';
-  $('#sEat').value=eatBack(); $('#keyCard').hidden=IN_VIEWER; syncGrams(); renderEx(); renderQuick();}
+  $('#sEat').value=eatBack(); $('#keyCard').hidden=IN_VIEWER; syncGrams(); renderEx(); renderQuick(); const n=Object.values(state.days).reduce((a,d)=>a+d.food.length,0); if(state.fast&&foodN!=null&&n>foodN) endFast(true); foodN=n; renderFast();}
+
+/* ---------- fast timer ---------- */
+let foodN=null;
+const hm=ms=>{const m=Math.max(0,Math.floor(ms/60000)); return Math.floor(m/60)+'h '+String(m%60).padStart(2,'0')+'m';};
+const when=t=>new Date(t).toLocaleString('en-GB',{weekday:'short',hour:'2-digit',minute:'2-digit'});
+function endFast(auto){const f=state.fast; if(!f) return; const e=Date.now(); state.fasts=(state.fasts||[]).concat({s:f.start,e}).slice(-30); state.fast=null; save(); toast((auto?'Food logged, fast ended · ':'Fast ended · ')+hm(e-f.start));}
+function renderFast(){const f=state.fast, st=$('#fastState'), sub=$('#fastSub'), btn=$('#fastBtn'); $('#fastEdit').hidden=!f;
+  if(f){st.textContent=hm(Date.now()-f.start); sub.textContent='since '+when(f.start); btn.textContent='End fast'; btn.className='btn in sm'; const el=$('#fastStart'); if(document.activeElement!==el) el.value=new Date(f.start-new Date(f.start).getTimezoneOffset()*60000).toISOString().slice(0,16);}
+  else{st.textContent='Not fasting'; const l=(state.fasts||[]).slice(-1)[0]; sub.textContent=l?'last fast '+hm(l.e-l.s)+', ended '+when(l.e):''; btn.textContent='Start fast'; btn.className='btn sm';}}
+$('#fastBtn').onclick=()=>{if(state.fast) endFast(false); else {state.fast={start:Date.now()}; save(); toast('Fast started');} renderFast();};
+$('#fastStart').onchange=e=>{const t=new Date(e.target.value).getTime(); if(state.fast&&t&&t<=Date.now()){state.fast.start=t; save();} renderFast();};
+setInterval(()=>{if(state.fast) renderFast();},30000);
 
 /* ---------- nav ---------- */
 const VIEWS=['day','week','sources','foods','settings'];
