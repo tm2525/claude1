@@ -253,6 +253,7 @@ details[open]>.sec-sum{margin-bottom:10px}
         <div class="field"><label for="fC">Carbs g</label><input type="number" id="fC" min="0" step="0.5"></div>
         <div class="field"><label for="fF">Fat g</label><input type="number" id="fF" min="0" step="0.5"></div>
       </div>
+      <div class="small" id="gramCalc" style="margin-top:8px;font-family:var(--mono);color:var(--ink)" hidden></div>
       <div class="grid g4" style="margin-top:10px">
         <div class="field"><label for="f_fb">Fibre g</label><input type="number" id="f_fb" min="0" step="0.5"></div>
         <div class="field"><label for="f_su">Sugar g</label><input type="number" id="f_su" min="0" step="0.5"></div>
@@ -449,13 +450,14 @@ details[open]>.sec-sum{margin-bottom:10px}
   </section>
   <section class="card">
     <div class="sec-head"><h2>Create a food</h2></div>
-    <div class="grid" style="grid-template-columns:2fr 1fr"><div class="field"><label for="cfName">Name</label><input type="text" id="cfName" autocomplete="off" placeholder="e.g. Mum's flapjack"></div><div class="field"><label for="cfBasis">Values per</label><select id="cfBasis"><option value="p">portion</option><option value="100">100 g</option></select></div></div>
+    <div class="grid" style="grid-template-columns:2fr 1fr"><div class="field"><label for="cfName">Name</label><input type="text" id="cfName" autocomplete="off" placeholder="e.g. Mum's flapjack"></div><div class="field"><label for="cfBasis">Values per</label><select id="cfBasis"><option value="p">portion</option><option value="100">100 g</option><option value="batch">whole dish (by weight)</option></select></div></div>
     <div class="grid g4" style="margin-top:10px">
       <div class="field"><label for="cfKcal">kcal</label><input type="number" id="cfKcal" min="0" step="1"></div>
       <div class="field"><label for="cfP">Protein g</label><input type="number" id="cfP" min="0" step="0.5"></div>
       <div class="field"><label for="cfC">Carbs g</label><input type="number" id="cfC" min="0" step="0.5"></div>
       <div class="field"><label for="cfF">Fat g</label><input type="number" id="cfF" min="0" step="0.5"></div>
     </div>
+    <div class="field" id="cfWtWrap" style="margin-top:10px" hidden><label for="cfWt">Total weight of the whole dish, g</label><input type="number" id="cfWt" min="0" step="1" placeholder="weigh it once, e.g. 1200"></div>
     <div class="field" style="margin-top:10px"><label for="cfServ">Usual serving, g (optional, for per 100 g foods)</label><input type="number" id="cfServ" min="0" step="1"></div>
     <div class="row" style="margin-top:10px"><button type="button" class="btn in sm" id="cfSave">Save food</button><span class="status" id="cfStatus" style="margin:0"></span></div>
   </section>
@@ -662,8 +664,10 @@ function renderDay(){
       const el=document.createElement('div'); el.className='slot';
       el.innerHTML='<div class="slot-h"><span class="eyebrow">'+s[0]+'</span><span><button type="button" data-ms class="x" style="font-size:11px;font-family:var(--mono);padding:2px 8px">save as meal</button><span class="num small muted">'+fmt(sub)+'</span></span></div>';
       el.querySelector('[data-ms]').onclick=()=>{mealSlot=mealSlot===i?null:i; renderDay();};
-      if(mealSlot===i){const w=document.createElement('div'); w.className='row'; w.style.cssText='flex-wrap:nowrap;gap:6px;margin:4px 0 8px'; w.innerHTML='<input type="text" id="mealName" placeholder="Name it, e.g. Usual breakfast" style="flex:1;min-width:0" autocomplete="off"><button type="button" class="btn sm">Save</button>';
-        w.querySelector('button').onclick=()=>{const nm=w.querySelector('input').value.trim(); if(!nm){w.querySelector('input').focus();return;} state.meals=(state.meals||[]).filter(m=>m.name.toLowerCase()!==nm.toLowerCase()).concat({name:nm,items:items.map(f=>Object.assign(pickFood(f),{qty:f.qty}))}); mealSlot=null; save(); render(); toast('Meal saved · '+nm);}; el.appendChild(w);}
+      if(mealSlot===i){const w=document.createElement('div'); w.className='row'; w.style.cssText='flex-wrap:nowrap;gap:6px;margin:4px 0 8px'; w.innerHTML='<input type="text" id="mealName" placeholder="Name it, e.g. Usual breakfast" style="flex:1;min-width:0" autocomplete="off"><input type="number" data-w min="0" step="1" placeholder="total g" aria-label="Total weight in grams, optional" style="width:76px;padding:9px 6px"><button type="button" class="btn sm">Save</button>';
+        w.querySelector('button').onclick=()=>{const nm=w.querySelector('input').value.trim(); if(!nm){w.querySelector('input').focus();return;} const wt=num(w.querySelector('[data-w]').value);
+          if(wt>0){const t=items.reduce((a,f)=>({kcal:a.kcal+f.kcal*f.qty,p:a.p+f.p*f.qty,c:a.c+f.c*f.qty,f:a.f+f.f*f.qty}),{kcal:0,p:0,c:0,f:0}), k=100/wt, full=nm+' (100 g)', rr=v=>Math.round(v*k*10)/10; state.library=state.library.filter(x=>x.name.toLowerCase()!==full.toLowerCase()).concat({name:full,kcal:Math.round(t.kcal*k),p:rr(t.p),c:rr(t.c),f:rr(t.f),pack:Math.round(wt),uses:1}); mealSlot=null; save(); render(); toast('Saved by weight · '+(t.kcal/wt).toFixed(2)+' kcal per gram'); return;}
+          state.meals=(state.meals||[]).filter(m=>m.name.toLowerCase()!==nm.toLowerCase()).concat({name:nm,items:items.map(f=>Object.assign(pickFood(f),{qty:f.qty}))}); mealSlot=null; save(); render(); toast('Meal saved · '+nm);}; el.appendChild(w);}
       items.forEach(f=>{const r=document.createElement('div'); r.className='entry';
         const q=f.qty!==1?' <span class="num faint">×'+f.qty+'</span>':'';
         r.innerHTML='<div class="nm">'+esc(f.name)+q+'<div class="macro">P '+Math.round(f.p*f.qty)+' · C '+Math.round(f.c*f.qty)+' · F '+Math.round(f.f*f.qty)+'</div></div><div class="kc">'+fmt(f.kcal*f.qty)+'</div><button class="x" aria-label="Remove">×</button>';
@@ -795,6 +799,7 @@ $('#foodForm').onsubmit=e=>{e.preventDefault(); const name=fName.value.trim(); c
   if($('#fSave').checked){const ex=state.library.find(x=>x.name.toLowerCase()===name.toLowerCase()); if(ex){Object.assign(ex,{kcal,p:f.p,c:f.c,f:f.f}); ex.uses=(ex.uses||0)+1;} else state.library.push({name,kcal,p:f.p,c:f.c,f:f.f,uses:1});}
   if(pendCode&&Date.now()-pendCode.t<600000&&$('#fSave').checked){const it=state.library.find(x=>x.name.toLowerCase()===name.toLowerCase()); if(it){state.library.forEach(x=>{if(x.code===pendCode.code) delete x.code;}); it.code=pendCode.code;}} pendCode=null;
   if($('#fSave').checked){const it=state.library.find(x=>x.name.toLowerCase()===name.toLowerCase()); const g=num($('#fGrams').value), pk=num($('#fPack').value); if(it){if(g) it.grams=g; if(pk) it.pack=pk; XK.forEach(k=>{if(f[k]) it[k]=f[k]; else delete it[k];});}}
+  const g0=num($('#fGrams').value); if(per100(name)&&g0>0){const q=f.qty; f.name=name.replace(/\s*\(100 ?g\)\s*$/i,'')+' ('+Math.round(g0)+' g)'; f.kcal=Math.round(f.kcal*q); f.p=r1(f.p*q); f.c=r1(f.c*q); f.f=r1(f.f*q); XK.forEach(k=>{if(f[k]) f[k]=r1(f[k]*q);}); f.qty=1;}
   save(); e.target.reset(); $('#fQty').value=1; $('#fMeasN').value=1; $('#numBox').open=false; render(); toast('Added · '+fmt(kcal*f.qty)+' kcal'); fName.focus();};
 
 /* ---------- live food search (Open Food Facts → Claude) ---------- */
@@ -986,7 +991,7 @@ function renderQuick(){const row=$('#quickRow'); row.innerHTML='';
   const y=new Date(cur+'T12:00:00'); y.setDate(y.getDate()-1); const yd=state.days[iso(y)]; const slot=slotOf(new Date().getHours()); const ys=yd?yd.food.filter(f=>slotOf(f.h)===slot):[];
   if(ys.length) chip('Repeat yesterday’s '+SLOTS[slot][0].toLowerCase()+' · '+fmt(ys.reduce((a,f)=>a+f.kcal*f.qty,0)),()=>logItems(ys,'Repeated'));
   (state.meals||[]).slice(-4).forEach(m=>chip(m.name+' · '+fmt(m.items.reduce((a,f)=>a+f.kcal*(f.qty||1),0)),()=>logItems(m.items,'Meal logged')));
-  state.library.filter(f=>f.uses).sort((a,b)=>b.uses-a.uses).slice(0,5).forEach(f=>{const q=/\(100 ?g\)\s*$/i.test(f.name)&&f.grams?f.grams/100:1; chip((f.name.length>24?f.name.slice(0,23)+'…':f.name)+' · '+Math.round(f.kcal*q),()=>{f.uses++; logItems([Object.assign({},f,{qty:q})]);});});
+  state.library.filter(f=>f.uses).sort((a,b)=>b.uses-a.uses).slice(0,5).forEach(f=>{const q=/\(100 ?g\)\s*$/i.test(f.name)&&f.grams?f.grams/100:1; chip((f.name.length>24?f.name.slice(0,23)+'…':f.name)+' · '+(per100(f.name)&&!f.grams?(f.kcal/100).toFixed(2)+'/g':Math.round(f.kcal*q)),()=>{if(per100(f.name)&&!f.grams){fillFood(f); toast('Type the grams you ate, then Add'); return;} f.uses++; logItems([Object.assign({},f,{qty:q})]);});});
   row.hidden=!row.children.length;}
 
 /* ---------- Claude helpers: text and vision ---------- */
@@ -1012,11 +1017,13 @@ $('#sayBtn').onclick=()=>{const t=$('#sayText').value.trim(); if(t.length<3){$('
 $('#sayText').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault(); $('#sayBtn').click();}});
 
 /* ---------- barcode and weighed grams ---------- */
-function syncGrams(){const on=/\(100 ?g\)\s*$/i.test(fName.value); document.querySelectorAll('.per100').forEach(el=>{el.hidden=!on;}); if(!on){$('#fGrams').value=''; $('#fPack').value=''; $('#fMeas').value=''; $('#fFrac').value='';}}
-function setGrams(g){g=Math.round(g); if(g>0){$('#fGrams').value=g; $('#fQty').value=g/100;}}
+function syncGrams(){const on=/\(100 ?g\)\s*$/i.test(fName.value); document.querySelectorAll('.per100').forEach(el=>{el.hidden=!on;}); if(!on){$('#fGrams').value=''; $('#fPack').value=''; $('#fMeas').value=''; $('#fFrac').value='';} updCalc();}
+function updCalc(){const el=$('#gramCalc'), k=num($('#fKcal').value), g=num($('#fGrams').value), pk=num($('#fPack').value); const on=!$('#fGramsWrap').hidden&&k>0; el.hidden=!on; if(on) el.textContent=(k/100).toFixed(2)+' kcal per gram'+(g>0?' × '+g+' g = '+fmt(k*g/100)+' kcal'+(pk>0?' ('+Math.round(g/pk*100)+'% of the '+pk+' g dish)':''):' · type the grams you ate');}
+function setGrams(g){g=Math.round(g); if(g>0){$('#fGrams').value=g; $('#fQty').value=g/100;} updCalc();}
 function fillFood(f){$('#numBox').open=true; XK.forEach(k=>{$('#f_'+k).value=f[k]>0?(k==='al'?Math.round(f[k]/8*10)/10:f[k]):'';}); fName.value=f.name; $('#fKcal').value=f.kcal; $('#fP').value=f.p||0; $('#fC').value=f.c||0; $('#fF').value=f.f||0; $('#fQty').value=1; sl.classList.remove('on'); syncGrams();
   if(!$('#fGramsWrap').hidden){if(f.pack) $('#fPack').value=f.pack; if(f.grams) setGrams(f.grams); $('#fGrams').focus();} else $('#fQty').focus();}
 const meas=()=>{const u=num($('#fMeas').value), n=num($('#fMeasN').value); if(u&&n) setGrams(u*n);}; $('#fMeas').onchange=meas; $('#fMeasN').oninput=meas;
+['fGrams','fKcal','fPack'].forEach(id=>$('#'+id).addEventListener('input',()=>updCalc()));
 const frac=()=>{const pk=num($('#fPack').value), fr=num($('#fFrac').value); if(pk&&fr) setGrams(pk*fr);}; $('#fFrac').onchange=frac; $('#fPack').oninput=frac;
 fName.addEventListener('input',syncGrams); $('#fQty').addEventListener('focus',syncGrams);
 $('#fGrams').oninput=e=>{const g=num(e.target.value); if(g!=null&&g>0) $('#fQty').value=Math.round(g)/100; $('#fMeas').value=''; $('#fFrac').value='';};
@@ -1075,10 +1082,13 @@ function renderMore(){
 $('#shop').onchange=e=>{state.settings.shop=e.target.value; save();};
 
 /* ---------- create a food, saved meals ---------- */
-$('#cfSave').onclick=()=>{const st=$('#cfStatus'), nm=$('#cfName').value.trim(), kc=num($('#cfKcal').value); if(!nm||kc==null){st.className='status err'; st.textContent=!nm?'Give it a name.':'Enter the kcal.'; return;}
-  const p100=$('#cfBasis').value==='100', full=nm.replace(/\s*\(100 ?g\)\s*$/i,'')+(p100?' (100 g)':''), sv=num($('#cfServ').value);
-  const food={name:full,kcal:Math.round(kc),p:num($('#cfP').value)||0,c:num($('#cfC').value)||0,f:num($('#cfF').value)||0,uses:0}; if(p100&&sv>0) food.grams=Math.round(sv);
-  state.library=state.library.filter(x=>x.name.toLowerCase()!==full.toLowerCase()); state.library.push(food); save(); ['cfName','cfKcal','cfP','cfC','cfF','cfServ'].forEach(k=>{$('#'+k).value='';}); st.className='status ok'; st.textContent='Saved. It will come up as you type on the Day tab.'; render();};
+$('#cfBasis').onchange=()=>{const b=$('#cfBasis').value==='batch'; $('#cfWtWrap').hidden=!b; $('label[for=cfKcal]').textContent=b?'Total kcal':'kcal';};
+$('#cfSave').onclick=()=>{const st=$('#cfStatus'), nm=$('#cfName').value.trim(), kc=num($('#cfKcal').value), basis=$('#cfBasis').value, wt=num($('#cfWt').value);
+  if(!nm||kc==null||(basis==='batch'&&!(wt>0))){st.className='status err'; st.textContent=!nm?'Give it a name.':kc==null?'Enter the kcal.':'Enter the total weight in grams.'; return;}
+  const per=basis!=='p', k=basis==='batch'?100/wt:1, full=nm.replace(/\s*\(100 ?g\)\s*$/i,'')+(per?' (100 g)':''), sv=num($('#cfServ').value), rr=v=>Math.round((num(v)||0)*k*10)/10;
+  const food={name:full,kcal:Math.round(kc*k),p:rr($('#cfP').value),c:rr($('#cfC').value),f:rr($('#cfF').value),uses:1}; if(per&&sv>0) food.grams=Math.round(sv); if(basis==='batch') food.pack=Math.round(wt);
+  state.library=state.library.filter(x=>x.name.toLowerCase()!==full.toLowerCase()); state.library.push(food); save(); ['cfName','cfKcal','cfP','cfC','cfF','cfServ','cfWt'].forEach(id=>{$('#'+id).value='';});
+  st.className='status ok'; st.textContent=basis==='batch'?'Saved at '+(kc/wt).toFixed(2)+' kcal per gram. When you log it, type the grams you ate, or pick a fraction of the dish.':'Saved. It will come up as you type on the Day tab.'; render();};
 function renderMeals(){const ms=state.meals||[], box=$('#mlList'); box.innerHTML=''; $('#mlCount').textContent=ms.length?ms.length+' saved':'';
   if(!ms.length){box.innerHTML='<div class="empty">No meals yet. On the Day tab, tap \u201csave as meal\u201d beside Morning, Midday, Evening or Night to keep that group of foods for one-tap logging.</div>'; return;}
   ms.forEach(m=>{const k=m.items.reduce((a,f)=>a+f.kcal*(f.qty||1),0), r=document.createElement('div'); r.className='lib-item';
