@@ -173,6 +173,7 @@ nav.tabs button{flex:1;background:none;border:none;padding:10px 4px 9px;font-fam
 nav.tabs button.on{color:var(--ink);border-top-color:var(--in)}
 .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(72px + env(safe-area-inset-bottom,0px));background:var(--ink);color:var(--bg);padding:8px 14px;border-radius:4px;font-family:var(--mono);font-size:13px;z-index:9;opacity:0;pointer-events:none;transition:opacity .2s}
 .toast.on{opacity:1;pointer-events:auto}
+header,main,nav.tabs,.toast{zoom:var(--z,0.92)}
 .card>details{border-top:none;margin-top:0;padding-top:0}
 .sec-sum{display:flex;align-items:baseline;justify-content:space-between;gap:10px;list-style:none;cursor:pointer}
 .sec-sum::-webkit-details-marker{display:none}
@@ -518,7 +519,7 @@ details[open]>.sec-sum{margin-bottom:10px}
     <div class="sec-head"><h2>You</h2></div>
     <div class="grid g2">
       <div class="field"><label for="sBmr">BMR kcal/day</label><input type="number" id="sBmr" min="800" step="10"></div>
-      <div class="field"><label for="sMode">Target type</label><select id="sMode"><option value="intake">Fixed intake</option><option value="net">Net vs burn</option></select></div><div class="field"><label for="sGoal" id="sGoalLab">Intake kcal/day</label><input type="number" id="sGoal" step="50"></div><div class="field"><label for="sEat">Exercise eaten back %</label><input type="number" id="sEat" min="0" max="100" step="10"></div>
+      <div class="field"><label for="sMode">Target type</label><select id="sMode"><option value="intake">Fixed intake</option><option value="net">Net vs burn</option></select></div><div class="field"><label for="sGoal" id="sGoalLab">Intake kcal/day</label><input type="number" id="sGoal" step="50"></div><div class="field"><label for="sEat">Exercise eaten back %</label><input type="number" id="sEat" min="0" max="100" step="10"></div><div class="field"><label for="sZoom">Text size</label><select id="sZoom"><option value="0.84">Smallest</option><option value="0.92">Small</option><option value="1">Standard</option><option value="1.08">Large</option></select></div>
     </div>
     <p class="small muted" style="margin:10px 0 0">Target is net kcal: −200 means aim to eat 200 below burn. 0 holds weight. Fixed intake is the same kcal ceiling every day, whatever you burn. Logged exercise raises a fixed intake target by the percentage set here. Your BMR is used whenever a source gives only active kcal; estimate it below if unsure.</p>
     <details><summary>Estimate BMR (Mifflin–St Jeor)</summary>
@@ -1152,9 +1153,10 @@ function renderMore(){
   const tgt=targetFor(cur,burnFor(cur).kcal), tail=' Tap any logged food on the Day tab to change its macros.';
   if(pm){const sum=m.p+m.c+m.f, g=macroTargets(cur); $('#mtNote').textContent=(sum===100?'Adds up to 100%.':'Adds up to '+sum+'%, not 100. Adjust, or use the button to fit carbs.')+' At today’s target of '+fmt(tgt)+' kcal that is '+g.p+' g protein, '+g.c+' g carbs and '+g.f+' g fat, and it moves when exercise raises the target.'+tail;}
   else{const kc=m.p*4+m.c*4+m.f*9; $('#mtNote').textContent=kc?'These add up to '+fmt(kc)+' kcal, against today’s target of '+fmt(tgt)+'.'+tail:'Leave blank for no target.'+tail;}
-  if(document.activeElement!==$('#shop')) $('#shop').value=state.settings.shop||''; $('#sEat').value=eatBack(); $('#keyCard').hidden=IN_VIEWER; syncGrams(); renderEx(); renderQuick(); renderWare(); renderRec(); renderMeals(); renderExtras(); renderNutri(); if(!webBusy){const ne=state.library.filter(f=>f.est).length; $('#webRow').hidden=!ne||IN_VIEWER; $('#webAll').textContent='Check '+ne+' estimate'+(ne===1?'':'s')+' online';} const n=(state.days[todayIso()]||{food:[]}).food.length; if(state.fast&&foodN!=null&&n>foodN) endFast(true); foodN=n; renderFast();}
+  if(document.activeElement!==$('#shop')) $('#shop').value=state.settings.shop||''; $('#sEat').value=eatBack(); const tz=String(state.settings.textZoom||0.92); document.documentElement.style.setProperty('--z',tz); if(document.activeElement!==$('#sZoom')) $('#sZoom').value=tz; $('#keyCard').hidden=IN_VIEWER; syncGrams(); renderEx(); renderQuick(); renderWare(); renderRec(); renderMeals(); renderExtras(); renderNutri(); if(!webBusy){const ne=state.library.filter(f=>f.est).length; $('#webRow').hidden=!ne||IN_VIEWER; $('#webAll').textContent='Check '+ne+' estimate'+(ne===1?'':'s')+' online';} const n=(state.days[todayIso()]||{food:[]}).food.length; if(state.fast&&foodN!=null&&n>foodN) endFast(true); foodN=n; renderFast();}
 
 $('#shop').onchange=e=>{state.settings.shop=e.target.value; save();};
+$('#sZoom').onchange=e=>{state.settings.textZoom=Number(e.target.value)||0.92; save(); render();};
 
 /* ---------- create a food, saved meals ---------- */
 $('#cfBasis').onchange=()=>{const b=$('#cfBasis').value==='batch'; $('#cfWtWrap').hidden=!b; $('label[for=cfKcal]').textContent=b?'Total kcal':'kcal';};
