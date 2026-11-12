@@ -229,7 +229,7 @@ details[open]>.sec-sum{margin-bottom:10px}
     <div class="status" id="labelStatus" hidden></div>
     <div id="mealPanel" class="note" style="margin:8px 0 12px" hidden></div>
     <form id="foodForm" autocomplete="off" novalidate>
-      <div class="grid g2" style="grid-template-columns:2fr 1fr">
+      <div class="grid" style="grid-template-columns:1fr">
         <div class="field sugg">
           <label for="fName">Food</label>
           <div class="row" style="gap:6px;flex-wrap:nowrap">
@@ -240,12 +240,18 @@ details[open]>.sec-sum{margin-bottom:10px}
           <select id="shop" aria-label="Shop to search" style="margin-top:6px;padding:6px 8px;font-size:13px"><option value="">Search any shop</option><option value="ms">M&amp;S only</option><option value="wr">Waitrose only</option><option value="al">Aldi only</option><option value="oc">Ocado only</option><option value="rest">Restaurant or café chain menu</option></select>
           <div class="status" id="liveStatus" hidden></div>
         </div>
-        <div class="field"><label for="fQty">Portions</label><input type="number" id="fQty" value="1" min="0.1" step="0.25"></div>
+        <div class="field"><label for="fAmt">Amount</label>
+          <div class="row" style="gap:6px;flex-wrap:nowrap"><input type="number" id="fAmt" value="1" min="0" step="any" style="flex:1;min-width:0"><select id="fUnit" style="flex:1.6;min-width:0">
+            <option value="portion">portions</option><option value="g">grams (g)</option><option value="ml">millilitres (ml)</option><option value="oz">ounces (oz)</option><option value="tbsp">tablespoons</option><option value="tsp">teaspoons</option><option value="cup">cups</option><option value="mug">mugs</option><option value="fist">fists (rice, pasta, veg)</option><option value="palm">palms (meat, fish)</option><option value="handful">handfuls (nuts, snacks)</option><option value="thumb">thumbs (butter, spreads)</option></select><input type="hidden" id="fQty" value="1"></div>
+          <div class="field" id="fPortGWrap" style="margin-top:8px" hidden><label for="fPortG">One portion of this food weighs, g</label><input type="number" id="fPortG" min="0" step="1" placeholder="needed to log it by weight"></div>
+          <div class="small" id="gramCalc" style="margin-top:8px;font-family:var(--mono);color:var(--ink)" hidden></div>
+        </div>
       </div>
-      <details id="numBox"><summary>Calories, macros and amount</summary>
+      <details id="numBox"><summary>Calories and macros</summary>
+      <div class="field" style="margin-top:10px"><label for="fBasis">The calories below are for</label><select id="fBasis"><option value="p">one portion</option><option value="100">100 g</option></select></div>
       <div class="grid g4" style="margin-top:10px">
-        <div class="field per100" id="fGramsWrap" hidden><label for="fGrams">Grams eaten</label><input type="number" id="fGrams" min="0" step="1" placeholder="g"></div>
-        <div class="field per100" hidden><label for="fMeas">Hand measure</label><div class="row" style="gap:4px;flex-wrap:nowrap"><input type="number" id="fMeasN" min="0" step="0.5" value="1" aria-label="How many" style="width:46px;padding:9px 4px;text-align:center"><select id="fMeas" style="min-width:0;padding:9px 4px"><option value="">choose</option><option value="175">fist (rice, pasta, veg)</option><option value="100">palm (meat, fish)</option><option value="30">handful (nuts, snacks)</option><option value="15">thumb (butter, cheese, spreads)</option><option value="15">tablespoon</option><option value="5">teaspoon</option><option value="250">mug</option></select></div></div>
+        <div class="field per100" id="fGramsWrap" style="display:none" hidden><label for="fGrams">Grams eaten</label><input type="number" id="fGrams" min="0" step="1" placeholder="g"></div>
+        <div class="field" style="display:none"><label for="fMeas">Hand measure</label><div class="row" style="gap:4px;flex-wrap:nowrap"><input type="number" id="fMeasN" min="0" step="0.5" value="1" aria-label="How many" style="width:46px;padding:9px 4px;text-align:center"><select id="fMeas" style="min-width:0;padding:9px 4px"><option value="">choose</option><option value="175">fist (rice, pasta, veg)</option><option value="100">palm (meat, fish)</option><option value="30">handful (nuts, snacks)</option><option value="15">thumb (butter, cheese, spreads)</option><option value="15">tablespoon</option><option value="5">teaspoon</option><option value="250">mug</option></select></div></div>
         <div class="field per100" hidden><label for="fPack">Pack size g</label><input type="number" id="fPack" min="0" step="1" placeholder="from the pack"></div>
         <div class="field per100" hidden><label for="fFrac">Ate of the pack</label><select id="fFrac"><option value="">choose</option><option value="0.25">a quarter</option><option value="0.3333">a third</option><option value="0.5">half</option><option value="0.6667">two thirds</option><option value="0.75">three quarters</option><option value="1">all of it</option></select></div>
         <div class="field"><label for="fKcal">kcal / portion</label><input type="number" id="fKcal" min="0" step="1" required></div>
@@ -253,7 +259,6 @@ details[open]>.sec-sum{margin-bottom:10px}
         <div class="field"><label for="fC">Carbs g</label><input type="number" id="fC" min="0" step="0.5"></div>
         <div class="field"><label for="fF">Fat g</label><input type="number" id="fF" min="0" step="0.5"></div>
       </div>
-      <div class="small" id="gramCalc" style="margin-top:8px;font-family:var(--mono);color:var(--ink)" hidden></div>
       <div class="grid g4" style="margin-top:10px">
         <div class="field"><label for="f_fb">Fibre g</label><input type="number" id="f_fb" min="0" step="0.5"></div>
         <div class="field"><label for="f_su">Sugar g</label><input type="number" id="f_su" min="0" step="0.5"></div>
@@ -350,6 +355,8 @@ details[open]>.sec-sum{margin-bottom:10px}
     <details><summary>Import from a Renpho scale</summary>
       <div class="note" style="margin-top:8px">Export your measurements from the Renpho Health app as a CSV (it usually arrives by email), save the attachment, then choose it here. Any CSV with a date column and a weight column works, in kg, lb or stone. If Renpho is set to sync with Apple Health, the Apple Health import on the Sources tab now brings weight in too.</div>
       <div class="row" style="margin-top:8px"><input type="file" id="rnFile" accept=".csv,text/csv,text/plain"></div>
+      <div class="row" style="margin-top:8px"><label class="btn ghost sm" for="rnShot" id="rnShotBtn" style="cursor:pointer">Read screenshots instead</label><input type="file" id="rnShot" accept="image/*" multiple hidden></div>
+      <div class="small muted" style="margin-top:6px">A screenshot of the Renpho history or trend list works too. This uses Claude.</div>
       <div class="status" id="rnStatus"></div>
     </details>
     <div class="chart-wrap" id="wChart" style="margin-top:10px"></div>
@@ -476,6 +483,8 @@ details[open]>.sec-sum{margin-bottom:10px}
     <p class="small muted" style="margin:0 0 10px">On the Cronometer website: Settings, Account, Account Data, Export Data. Pick a date range (a few months is plenty) and choose Export Servings. Then select that file here. Every food you logged is added to your foods, most-eaten first.</p>
     <div class="row"><input type="file" id="crFile" accept=".csv,text/csv,text/plain"></div>
     <label class="check" style="margin-top:8px"><input type="checkbox" id="crHist"> Also copy the daily history into Stoke</label>
+    <div class="row" style="margin-top:10px"><label class="btn ghost sm" for="crShot" id="crShotBtn" style="cursor:pointer">Read screenshots instead</label><input type="file" id="crShot" accept="image/*" multiple hidden></div>
+    <p class="small muted" style="margin:8px 0 0">Screenshots of your Cronometer diary work too. Stoke reads each food with its amount and calories and saves it to your foods; tick the box above to log them on the day shown as well. This uses Claude.</p>
     <div class="status" id="crStatus"></div>
   </section>
   <section class="card">
@@ -807,15 +816,16 @@ fName.addEventListener('input',()=>{const q=fName.value.trim().toLowerCase(); sl
     b.onclick=()=>fillFood(f); sl.appendChild(b);});
   sl.classList.add('on');});
 document.addEventListener('click',e=>{if(!e.target.closest('.sugg')) sl.classList.remove('on');});
-$('#foodForm').onsubmit=e=>{e.preventDefault(); const name=fName.value.trim(); const kcal=num($('#fKcal').value); if(!name||kcal==null){$('#numBox').open=true; (name?$('#fKcal'):fName).focus(); return;}
+$('#foodForm').onsubmit=e=>{e.preventDefault(); if(isPer()&&fName.value.trim()&&!per100n(fName.value)) fName.value=fName.value.trim()+' (100 g)'; if(fName.value.trim()&&applyAmt()==null){$('#gramCalc').hidden=false; ($('#fPortGWrap').hidden?$('#fAmt'):$('#fPortG')).focus(); return;} const name=fName.value.trim(); const kcal=num($('#fKcal').value); if(!name||kcal==null){$('#numBox').open=true; (name?$('#fKcal'):fName).focus(); return;}
   const f={id:Date.now()+Math.random().toString(36).slice(2,6),name,kcal,p:num($('#fP').value)||0,c:num($('#fC').value)||0,f:num($('#fF').value)||0,qty:num($('#fQty').value)||1,h:new Date().getHours()};
   XK.forEach(k=>{let v=num($('#f_'+k).value); if(v>0) f[k]=k==='al'?Math.round(v*80)/10:v;});
   dayRec(cur).food.push(f);
   if($('#fSave').checked){const ex=state.library.find(x=>x.name.toLowerCase()===name.toLowerCase()); if(ex){Object.assign(ex,{kcal,p:f.p,c:f.c,f:f.f}); ex.uses=(ex.uses||0)+1;} else state.library.push({name,kcal,p:f.p,c:f.c,f:f.f,uses:1});}
   if(pendCode&&Date.now()-pendCode.t<600000&&$('#fSave').checked){const it=state.library.find(x=>x.name.toLowerCase()===name.toLowerCase()); if(it){state.library.forEach(x=>{if(x.code===pendCode.code) delete x.code;}); it.code=pendCode.code;}} pendCode=null;
-  if($('#fSave').checked){const it=state.library.find(x=>x.name.toLowerCase()===name.toLowerCase()); const g=num($('#fGrams').value), pk=num($('#fPack').value); if(it){if(g) it.grams=g; if(pk) it.pack=pk; XK.forEach(k=>{if(f[k]) it[k]=f[k]; else delete it[k];});}}
+  if($('#fSave').checked){const it=state.library.find(x=>x.name.toLowerCase()===name.toLowerCase()); const g=num($('#fGrams').value), pk=num($('#fPack').value); if(it){if(g) it.grams=g; if(pk) it.pack=pk; const pg=num($('#fPortG').value); if(pg>0&&!isPer()) it.portionG=pg; XK.forEach(k=>{if(f[k]) it[k]=f[k]; else delete it[k];});}}
   const g0=num($('#fGrams').value); if(per100(name)&&g0>0){const q=f.qty; f.name=name.replace(/\s*\(100 ?g\)\s*$/i,'')+' ('+Math.round(g0)+' g)'; f.kcal=Math.round(f.kcal*q); f.p=r1(f.p*q); f.c=r1(f.c*q); f.f=r1(f.f*q); XK.forEach(k=>{if(f[k]) f[k]=r1(f[k]*q);}); f.qty=1;}
-  save(); e.target.reset(); $('#fQty').value=1; $('#fMeasN').value=1; $('#numBox').open=false; render(); toast('Added · '+fmt(kcal*f.qty)+' kcal'); fName.focus();};
+  else if(!per100(name)&&UNITS[$('#fUnit').value]>0){const q=f.qty, gg=Math.round((num($('#fAmt').value)||0)*UNITS[$('#fUnit').value]); f.name=name.replace(/\s*\((?:[^()]|\([^()]*\))*\)\s*$/,'')+' ('+gg+' g)'; f.kcal=Math.round(f.kcal*q); f.p=r1(f.p*q); f.c=r1(f.c*q); f.f=r1(f.f*q); XK.forEach(k=>{if(f[k]) f[k]=r1(f[k]*q);}); f.qty=1;}
+  save(); e.target.reset(); $('#fQty').value=1; $('#fMeasN').value=1; $('#numBox').open=false; curFood=null; syncGrams(); render(); toast('Added · '+fmt(kcal*f.qty)+' kcal'); fName.focus();};
 
 /* ---------- live food search (Open Food Facts → Claude) ---------- */
 let liveSample=null;
@@ -877,7 +887,7 @@ async function readViaApi(file,prompt,maxTok){const key=state.settings.apiKey; i
       const per=Number(r.kcal_100g)>0, nm=String(r.name||'Unnamed food');
       fillFood(per?{name:nm+' (100 g)',kcal:Math.round(Number(r.kcal_100g)),p:Number(r.protein_100g)||0,c:Number(r.carbs_100g)||0,f:Number(r.fat_100g)||0,fb:Number(r.fibre_100g)||0,su:Number(r.sugar_100g)||0,sa:Number(r.salt_100g)||0,grams:Number(r.serving_g)||0,pack:Number(r.pack_g)||0}
                   :{name:nm+(r.serving?' ('+String(r.serving)+')':''),kcal:Math.round(Number(r.kcal)||0),p:Number(r.protein)||0,c:Number(r.carbs)||0,f:Number(r.fat)||0,fb:Number(r.fibre)||0,su:Number(r.sugar)||0,sa:Number(r.salt)||0});
-      st.className='status ok'; st.textContent=(r.source==='estimate'?'Estimated from the photo, so check the numbers. ':'Read from the label. ')+(r.note?String(r.note)+' ':'')+(per?'Values are per 100 g'+(Number(r.serving_g)?', set to one '+Number(r.serving_g)+' g serving':'')+'. Change the grams, or use a hand measure or pack fraction, then Add.':'Set portions, then Add.');
+      st.className='status ok'; st.textContent=(r.source==='estimate'?'Estimated from the photo, so check the numbers. ':'Read from the label. ')+(r.note?String(r.note)+' ':'')+(per?'Values are per 100 g'+(Number(r.serving_g)?', set to one '+Number(r.serving_g)+' g serving':'')+'. Set the amount and unit, then Add.':'Set the amount, then Add.');
     }catch(e){
       st.className='status err'; const c=e&&e.code;
       st.textContent=c==='no_key'?'Add your Anthropic API key under Set to enable label reading.':
@@ -1032,11 +1042,32 @@ $('#sayBtn').onclick=()=>{const t=$('#sayText').value.trim(); if(t.length<3){$('
 $('#sayText').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault(); $('#sayBtn').click();}});
 
 /* ---------- barcode and weighed grams ---------- */
-function syncGrams(){const on=/\(100 ?g\)\s*$/i.test(fName.value); document.querySelectorAll('.per100').forEach(el=>{el.hidden=!on;}); if(!on){$('#fGrams').value=''; $('#fPack').value=''; $('#fMeas').value=''; $('#fFrac').value='';} updCalc();}
-function updCalc(){const el=$('#gramCalc'), k=num($('#fKcal').value), g=num($('#fGrams').value), pk=num($('#fPack').value); const on=!$('#fGramsWrap').hidden&&k>0; el.hidden=!on; if(on) el.textContent=(k/100).toFixed(2)+' kcal per gram'+(g>0?' × '+g+' g = '+fmt(k*g/100)+' kcal'+(pk>0?' ('+Math.round(g/pk*100)+'% of the '+pk+' g dish)':''):' · type the grams you ate');}
-function setGrams(g){g=Math.round(g); if(g>0){$('#fGrams').value=g; $('#fQty').value=g/100;} updCalc();}
-function fillFood(f){$('#numBox').open=true; XK.forEach(k=>{$('#f_'+k).value=f[k]>0?(k==='al'?Math.round(f[k]/8*10)/10:f[k]):'';}); fName.value=f.name; $('#fKcal').value=f.kcal; $('#fP').value=f.p||0; $('#fC').value=f.c||0; $('#fF').value=f.f||0; $('#fQty').value=1; sl.classList.remove('on'); syncGrams();
-  if(!$('#fGramsWrap').hidden){if(f.pack) $('#fPack').value=f.pack; if(f.grams) setGrams(f.grams); $('#fGrams').focus();} else $('#fQty').focus();}
+let curFood=null;
+const UNITS={portion:0,g:1,ml:1,oz:28.35,tbsp:15,tsp:5,cup:240,mug:250,fist:175,palm:100,handful:30,thumb:15};
+const isPer=()=>$('#fBasis').value==='100';
+const nameG=()=>{const m=fName.value.match(/(\d+(?:\.\d+)?)\s*(g|ml)\s*\)+\s*$/i); return m&&!per100n(fName.value)?parseFloat(m[1]):0;};
+const per100n=n=>/\(100 ?g\)\s*$/i.test(n);
+function portionG(){if(isPer()) return curFood&&curFood.grams?curFood.grams:100; return nameG()||num($('#fPortG').value)||(curFood&&curFood.portionG)||0;}
+function syncGrams(){if(per100n(fName.value)) $('#fBasis').value='100'; const on=isPer(); document.querySelectorAll('.per100').forEach(el=>{el.hidden=!on;}); if(!on){$('#fGrams').value=''; $('#fPack').value=''; $('#fFrac').value='';} applyAmt();}
+function applyAmt(){const u=$('#fUnit').value, w=UNITS[u]>0, per=isPer(); let a=num($('#fAmt').value); if(!(a>0)) a=w?null:1; let qty=null, grams=null;
+  if(a!=null){if(w){grams=a*UNITS[u]; if(per) qty=grams/100; else {const pg=portionG(); qty=pg>0?grams/pg:null;}} else {qty=a; if(per){grams=a*portionG(); qty=grams/100;}}}
+  $('#fPortGWrap').hidden=!(w&&!per&&!nameG()&&!(curFood&&curFood.portionG));
+  if(qty!=null) $('#fQty').value=Math.round(qty*1000)/1000; $('#fGrams').value=per&&grams!=null?Math.round(grams):''; updCalc(); return qty;}
+function updCalc(){const el=$('#gramCalc'), k=num($('#fKcal').value), u=$('#fUnit').value, w=UNITS[u]>0, per=isPer(), pk=num($('#fPack').value); let a=num($('#fAmt').value); if(!(a>0)) a=w?null:1;
+  const un=$('#fUnit').selectedOptions[0].textContent.replace(/\s*\(.*$/,''); let t='';
+  if(a==null) t='Enter how many '+un+'.';
+  else if(per){const g=w?a*UNITS[u]:a*portionG(); t=(u==='g'||u==='ml'?'':a+' '+un+' ≈ ')+Math.round(g)+' g'+(k>0?' × '+(k/100).toFixed(2)+' kcal per gram = '+fmt(k*g/100)+' kcal':'')+(pk>0?' ('+Math.round(g/pk*100)+'% of the '+pk+' g dish)':'');}
+  else if(w){const pg=portionG(), g=a*UNITS[u]; t=pg>0?(u==='g'||u==='ml'?'':a+' '+un+' ≈ ')+Math.round(g)+' g = '+(Math.round(g/pg*100)/100)+' of a '+pg+' g portion'+(k>0?' = '+fmt(k*g/pg)+' kcal':''):'This food is saved per portion. Enter what one portion weighs to log it in '+un+'.';}
+  else t=a+' portion'+(a===1?'':'s')+(k>0?' × '+fmt(k)+' kcal = '+fmt(k*a)+' kcal':'');
+  el.hidden=!t; el.textContent=t;}
+function setGrams(g){g=Math.round(g); if(g>0){$('#fUnit').value='g'; $('#fAmt').value=g;} applyAmt();}
+function fillFood(f){curFood=f; $('#numBox').open=true; XK.forEach(k=>{$('#f_'+k).value=f[k]>0?(k==='al'?Math.round(f[k]/8*10)/10:f[k]):'';});
+  fName.value=f.name; $('#fKcal').value=f.kcal; $('#fP').value=f.p||0; $('#fC').value=f.c||0; $('#fF').value=f.f||0; $('#fBasis').value=per100n(f.name)?'100':'p'; $('#fPortG').value=f.portionG||''; sl.classList.remove('on');
+  if(isPer()){$('#fUnit').value='g'; $('#fAmt').value=f.grams||100;} else {$('#fUnit').value='portion'; $('#fAmt').value=1;}
+  syncGrams(); if(isPer()&&f.pack) $('#fPack').value=f.pack; applyAmt(); $('#fAmt').focus(); try{$('#fAmt').select();}catch(e){}}
+['fAmt','fPortG','fKcal'].forEach(id=>$('#'+id).addEventListener('input',()=>applyAmt())); $('#fUnit').addEventListener('change',()=>applyAmt());
+$('#fBasis').addEventListener('change',()=>{const v=fName.value.trim(); if(isPer()){if(v&&!per100n(v)) fName.value=v+' (100 g)'; if($('#fUnit').value==='portion'){$('#fUnit').value='g'; if(!(num($('#fAmt').value)>1)) $('#fAmt').value=100;}} else {fName.value=v.replace(/\s*\(100 ?g\)\s*$/i,''); } syncGrams();});
+fName.addEventListener('input',()=>{if(curFood&&fName.value!==curFood.name) curFood=null; if(!fName.value.trim()) $('#fBasis').value='p';});
 const meas=()=>{const u=num($('#fMeas').value), n=num($('#fMeasN').value); if(u&&n) setGrams(u*n);}; $('#fMeas').onchange=meas; $('#fMeasN').oninput=meas;
 ['fGrams','fKcal','fPack'].forEach(id=>$('#'+id).addEventListener('input',()=>updCalc()));
 const frac=()=>{const pk=num($('#fPack').value), fr=num($('#fFrac').value); if(pk&&fr) setGrams(pk*fr);}; $('#fFrac').onchange=frac; $('#fPack').oninput=frac;
@@ -1058,7 +1089,7 @@ function savedHint(){const l=state.library.filter(f=>f.name&&f.kcal>=0).sort((a,
 async function barLookup(code){const st=$('#labelStatus'); st.hidden=false; st.className='status'; st.textContent='Looking up '+code+'…';
   const mine=state.library.find(x=>x.code===code); pendCode={code,t:Date.now()};
   try{const f=mine?{name:mine.name,kcal:mine.kcal,p:mine.p,c:mine.c,f:mine.f}:await offCode(code); if(!f){st.className='status err'; st.textContent='Barcode '+code+' is not in the database. Use Label photo or type the values, then Add, and Stoke will remember it for this barcode.'; return;}
-    fillFood(f); st.className='status ok'; st.textContent=(mine?'From your saved foods: ':'Found ')+f.name+'. '+($('#fGramsWrap').hidden?'Set portions':'Set the grams, or use a hand measure or pack fraction')+', then Add.';
+    fillFood(f); st.className='status ok'; st.textContent=(mine?'From your saved foods: ':'Found ')+f.name+'. '+'Set the amount and unit, then Add.';
   }catch(e){st.className='status err'; st.textContent='Could not reach the product database ('+(e&&e.message||'offline')+'). Use Label photo or type the values, then Add, and Stoke will remember it for this barcode.';}}
 $('#barFile').addEventListener('change',async e=>{const inp=e.target, file=inp.files&&inp.files[0]; if(!file) return; const st=$('#labelStatus'), btn=$('#barBtn');
   btn.style.pointerEvents='none'; btn.style.opacity='.5'; st.hidden=false; st.className='status'; st.textContent='Reading the barcode…';
@@ -1146,6 +1177,26 @@ $('#rnFile').onchange=e=>{const f=e.target.files&&e.target.files[0], st=$('#rnSt
   rd.onload=()=>{try{const r=importWeights(rd.result); save(); render(); const dd=k=>new Date(k+'T12:00:00').toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'});
       st.className='status ok'; st.textContent='Imported '+r.n+' days of weight, '+dd(r.first)+' to '+dd(r.last)+' (latest '+r.latest+' kg). Where a day had several readings, the lowest is kept.'+(r.bmr?' Renpho puts your BMR at '+fmt(r.bmr)+' kcal; Stoke is using '+fmt(state.settings.bmr)+', which you can change under Set.':''); toast('Weights imported');}
     catch(err){st.className='status err'; st.textContent='Could not import: '+err.message+'.';}}; rd.readAsText(f); e.target.value='';};
+
+/* ---------- read screenshots from other apps ---------- */
+async function eachShot(files,prompt,maxTok,st,btn,handle){btn.style.pointerEvents='none'; btn.style.opacity='.5'; let done=0, bad=[];
+  for(const f of files){st.className='status'; st.textContent='Reading screenshot '+(done+bad.length+1)+' of '+files.length+'…';
+    try{const r=await visionJSON(f,prompt,maxTok); if(!r||r.error) throw {code:'nofood',message:r&&r.error||'nothing readable'}; handle(r); done++;}catch(e){bad.push(aiErr(e)); if(e&&(e.code==='no_key'||e.code==='bad_key'||e.code==='not_granted')) break;}}
+  btn.style.pointerEvents=''; btn.style.opacity=''; return {done,bad};}
+$('#crShot').onchange=async e=>{const files=[...(e.target.files||[])].slice(0,8); e.target.value=''; if(!files.length) return; const st=$('#crStatus'), log=$('#crHist').checked; let foods=0, logged=0, names=[];
+  const prompt='This is a screenshot from a food diary app such as Cronometer. List every food entry visible. Reply with only one JSON object: {"date": "YYYY-MM-DD if a date is shown, else null", "items": [{"name": food name as shown, "amount": number, "unit": "g", "ml" or the unit shown such as "cup" or "each", "kcal": number, "protein": g or null, "carbs": g or null, "fat": g or null}]}. Use only what is visible and skip entries that are cut off. Today is '+todayIso()+'; if a date shows no year, use the most recent such date. If it is not a food diary, reply {"error": "what it is"}.';
+  const res=await eachShot(files,prompt,1500,st,$('#crShotBtn'),r=>{const day=/^\d{4}-\d{2}-\d{2}$/.test(String(r.date||''))?r.date:cur;
+    (Array.isArray(r.items)?r.items:[]).forEach((x,i)=>{const name=String(x.name||'').trim(), kc=Number(x.kcal)||0, amt=Number(x.amount)||0, unit=String(x.unit||'').trim(); if(!name||!(kc>0)) return;
+      const isG=/^(g|ml|grams?)$/i.test(unit)&&amt>0, k=isG?100/amt:1/(amt||1), full=name+(isG?' (100 g)':(unit?' (1 '+unit+')':''));
+      const food={name:full,kcal:Math.round(kc*k),p:r1((Number(x.protein)||0)*k),c:r1((Number(x.carbs)||0)*k),f:r1((Number(x.fat)||0)*k),from:'screenshot'}; if(isG) food.grams=Math.round(amt);
+      const ex=state.library.find(y=>y.name.toLowerCase()===full.toLowerCase()); if(ex){Object.assign(ex,food); ex.uses=(ex.uses||0)+1;} else state.library.push(Object.assign(food,{uses:1})); foods++; names.push(name);
+      if(log){dayRec(day).food.push({id:'ss'+Date.now()+i,name:name+(amt?' ('+amt+(unit?' '+unit:'')+')':''),kcal:Math.round(kc),p:r1(Number(x.protein)||0),c:r1(Number(x.carbs)||0),f:r1(Number(x.fat)||0),qty:1,h:12,src:'screenshot'}); logged++;}});});
+  if(foods){save(); render();} st.className=foods?'status ok':'status err'; st.textContent=(foods?'Read '+res.done+' screenshot'+(res.done>1?'s':'')+': '+foods+' foods saved'+(logged?', '+logged+' logged':'')+' ('+names.slice(0,3).join(', ')+(names.length>3?'…':'')+'). Check the figures against the app.':'Nothing was read.')+(res.bad.length?' '+res.bad.length+' failed: '+res.bad[0]:'');};
+$('#rnShot').onchange=async e=>{const files=[...(e.target.files||[])].slice(0,8); e.target.value=''; if(!files.length) return; const st=$('#rnStatus'), day={};
+  const prompt='This is a screenshot from a body-weight or smart-scale app such as Renpho. Extract every body-weight reading visible, each with its date. Reply with only one JSON object: {"readings": [{"date": "YYYY-MM-DD", "weight": number, "unit": "kg", "lb" or "st"}]}. Today is '+todayIso()+'; resolve words like today and yesterday, and where no year is shown use the most recent such date. Leave out body fat, BMI and every other measure. If there are no weight readings, reply {"error": "what it shows"}.';
+  const res=await eachShot(files,prompt,900,st,$('#rnShotBtn'),r=>{(Array.isArray(r.readings)?r.readings:[]).forEach(x=>{const k=String(x.date||''); let w=Number(x.weight)||0; if(!/^\d{4}-\d{2}-\d{2}$/.test(k)||!(w>0)) return; if(/lb/i.test(x.unit||'')) w*=0.45359237; if(/st/i.test(x.unit||'')) w*=6.35029; if(w>=30&&w<=300&&k<=todayIso()) day[k]=Math.min(day[k]||999,w);});});
+  const ks=Object.keys(day).sort(); ks.forEach(k=>{W()[k]=Math.round(day[k]*10)/10;}); if(ks.length){save(); render();}
+  st.className=ks.length?'status ok':'status err'; st.textContent=(ks.length?'Read '+ks.length+' day'+(ks.length>1?'s':'')+' of weight ('+ks.map(k=>k.slice(5)+': '+W()[k]).slice(-4).join(', ')+' kg). Check them against the app.':'No weights were read.')+(res.bad.length?' '+res.bad.length+' failed: '+res.bad[0]:'');};
 
 /* ---------- recipes ---------- */
 const REC=()=>state.recDraft||(state.recDraft={name:'',servings:2,cooked:0,items:[]});
