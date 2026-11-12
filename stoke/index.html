@@ -480,7 +480,7 @@ details[open]>.sec-sum{margin-bottom:10px}
   <section class="card">
     <div class="sec-head"><h2>Import from Cronometer</h2></div>
     <p class="small muted" style="margin:0 0 10px">On the Cronometer website: Settings, Account, Account Data, Export Data. Pick a date range (a few months is plenty) and choose Export Servings. Then select that file here. Every food you logged is added to your foods, most-eaten first.</p>
-    <div class="row"><input type="file" id="crFile" accept=".csv,text/csv,text/plain"></div>
+    <div class="row"><input type="file" id="crFile" accept=".csv,.json,text/csv,text/plain,application/json"></div>
     <label class="check" style="margin-top:8px"><input type="checkbox" id="crHist"> Also copy the daily history into Stoke</label>
     <div class="row" style="margin-top:10px"><label class="btn ghost sm" for="crShot" id="crShotBtn" style="cursor:pointer">Read screenshots instead</label><input type="file" id="crShot" accept="image/*" multiple hidden></div>
     <p class="small muted" style="margin:8px 0 0">Screenshots of your Cronometer diary work too. Stoke reads each food with its amount and calories and saves it to your foods; tick the box above to log them on the day shown as well. This uses Claude.</p>
@@ -488,6 +488,7 @@ details[open]>.sec-sum{margin-bottom:10px}
   </section>
   <section class="card">
     <div class="sec-head"><h2>My foods</h2><span class="small num" id="libCount"></span></div>
+    <div class="row" id="webRow" style="margin-bottom:8px" hidden><button type="button" class="btn ghost sm" id="webAll">Check estimates online</button><span class="status" id="webStatus" style="margin:0"></span></div>
     <input type="text" id="libSearch" placeholder="Filter">
     <div id="libList" style="margin-top:8px"></div>
   </section>
@@ -1126,7 +1127,7 @@ function renderMore(){
   const tgt=targetFor(cur,burnFor(cur).kcal), tail=' Tap any logged food on the Day tab to change its macros.';
   if(pm){const sum=m.p+m.c+m.f, g=macroTargets(cur); $('#mtNote').textContent=(sum===100?'Adds up to 100%.':'Adds up to '+sum+'%, not 100. Adjust, or use the button to fit carbs.')+' At today’s target of '+fmt(tgt)+' kcal that is '+g.p+' g protein, '+g.c+' g carbs and '+g.f+' g fat, and it moves when exercise raises the target.'+tail;}
   else{const kc=m.p*4+m.c*4+m.f*9; $('#mtNote').textContent=kc?'These add up to '+fmt(kc)+' kcal, against today’s target of '+fmt(tgt)+'.'+tail:'Leave blank for no target.'+tail;}
-  if(document.activeElement!==$('#shop')) $('#shop').value=state.settings.shop||''; $('#sEat').value=eatBack(); $('#keyCard').hidden=IN_VIEWER; syncGrams(); renderEx(); renderQuick(); renderWare(); renderRec(); renderMeals(); renderExtras(); const n=(state.days[todayIso()]||{food:[]}).food.length; if(state.fast&&foodN!=null&&n>foodN) endFast(true); foodN=n; renderFast();}
+  if(document.activeElement!==$('#shop')) $('#shop').value=state.settings.shop||''; $('#sEat').value=eatBack(); $('#keyCard').hidden=IN_VIEWER; syncGrams(); renderEx(); renderQuick(); renderWare(); renderRec(); renderMeals(); renderExtras(); if(!webBusy){const ne=state.library.filter(f=>f.est).length; $('#webRow').hidden=!ne||IN_VIEWER; $('#webAll').textContent='Check '+ne+' estimate'+(ne===1?'':'s')+' online';} const n=(state.days[todayIso()]||{food:[]}).food.length; if(state.fast&&foodN!=null&&n>foodN) endFast(true); foodN=n; renderFast();}
 
 $('#shop').onchange=e=>{state.settings.shop=e.target.value; save();};
 
@@ -1163,7 +1164,8 @@ function importCrono(text,withHistory){const rows=parseCSV(text); if(rows.length
   let hist=0; if(withHistory) Object.keys(days).forEach(k=>{const d=dayRec(k); if(d.food.some(x=>x.src==='cronometer')) return; days[k].forEach((e,i)=>{XK.forEach(x=>{if(!(e[x]>0)) delete e[x];}); d.food.push(Object.assign(e,{id:'cr'+k+i,src:'cronometer'}));}); hist++;});
   return {entries,added,updated,hist,top:Object.values(foods).sort((a,b)=>b.n-a.n).slice(0,3).map(f=>f.name+' ×'+f.n)};}
 $('#crFile').onchange=e=>{const f=e.target.files&&e.target.files[0], st=$('#crStatus'); if(!f) return; st.className='status'; st.textContent='Reading…'; const rd=new FileReader();
-  rd.onload=()=>{try{const r=importCrono(String(rd.result),$('#crHist').checked); save(); render(); st.className='status ok'; st.textContent='Read '+r.entries+' logged servings: '+r.added+' foods added, '+r.updated+' updated'+(r.hist?', '+r.hist+' days of history copied':'')+'. Most eaten: '+r.top.join(', ')+'.'; toast('Cronometer foods imported');}catch(err){st.className='status err'; st.textContent='Could not import: '+err.message+'.';}}; rd.readAsText(f); e.target.value='';};
+  rd.onload=()=>{try{if(/^\s*\[/.test(String(rd.result))){const n=importFoodList(JSON.parse(String(rd.result))); save(); render(); st.className='status ok'; st.textContent='Added '+n.added+' foods to your foods ('+n.skipped+' were already there). They are typical values marked “estimate”; use “Check estimates online” under My foods to replace them with product values.'; toast('Foods imported'); return;}
+      const r=importCrono(String(rd.result),$('#crHist').checked); save(); render(); st.className='status ok'; st.textContent='Read '+r.entries+' logged servings: '+r.added+' foods added, '+r.updated+' updated'+(r.hist?', '+r.hist+' days of history copied':'')+'. Most eaten: '+r.top.join(', ')+'.'; toast('Cronometer foods imported');}catch(err){st.className='status err'; st.textContent='Could not import: '+err.message+'.';}}; rd.readAsText(f); e.target.value='';};
 
 /* ---------- scale import (Renpho or any weight CSV) ---------- */
 function importWeights(text){const rows=parseCSV(String(text).replace(/^﻿/,'')); if(rows.length<2) throw new Error('the file has no rows'); const head=rows[0].map(x=>x.trim().toLowerCase());
@@ -1198,13 +1200,28 @@ $('#crShot').onchange=async e=>{const files=[...(e.target.files||[])].slice(0,8)
       try{const hits=await offSearch(it.q,null); const ts=it.q.toLowerCase().split(/[^a-z0-9]+/).filter(t=>t.length>2); let best=null, bs=0; hits.forEach(hh=>{const n=hh.name.toLowerCase(), sc=ts.filter(t=>n.includes(t)).length; if(sc>bs){bs=sc; best=hh;}});
         if(best&&bs>=Math.max(1,Math.ceil(ts.length/2))){const p100=per100(best.name); let k=null; if(it.isG&&p100) k=1; else if(!it.isG&&!p100) k=1; else if(!it.isG&&p100&&best.grams>0) k=best.grams/100;
           if(k!=null){Object.assign(it.food,{kcal:Math.round(best.kcal*k),p:r1(best.p*k),c:r1(best.c*k),f:r1(best.f*k),web:best.name.replace(/\s*\(100 ?g\)\s*$/i,'')}); XK.forEach(x=>{if(best[x]>0) it.food[x]=r1(best[x]*k);}); delete it.food.est; web++;}}}catch(e){}
-      if(i<list.length-1) await new Promise(r=>setTimeout(r,1200));}}
+      if(i<list.length-1) await new Promise(r=>setTimeout(r,6500));}}
   if(foods){save(); render();} st.className=foods?'status ok':'status err'; st.textContent=(foods?'Read '+res.done+' screenshot'+(res.done>1?'s':'')+': '+foods+' foods saved'+(logged?', '+logged+' logged':'')+' ('+names.slice(0,3).join(', ')+(names.length>3?'…':'')+').'+(est?' '+est+' had no calories on screen: '+web+' matched to a product in the online database (marked “web” with the product it matched), '+(est-web)+' left as typical estimates'+(IN_VIEWER?' because the online database cannot be reached from inside Claude':'')+'. Check a few against the pack.':' Check the figures against the app.'):'Nothing was read.')+(res.bad.length?' '+res.bad.length+' failed: '+res.bad[0]:'');};
 $('#rnShot').onchange=async e=>{const files=[...(e.target.files||[])].slice(0,8); e.target.value=''; if(!files.length) return; const st=$('#rnStatus'), day={};
   const prompt='This is a screenshot from a body-weight or smart-scale app such as Renpho. Extract every body-weight reading visible, each with its date. Reply with only one JSON object: {"readings": [{"date": "YYYY-MM-DD", "weight": number, "unit": "kg", "lb" or "st"}]}. Today is '+todayIso()+'; resolve words like today and yesterday, and where no year is shown use the most recent such date. Leave out body fat, BMI and every other measure. If there are no weight readings, reply {"error": "what it shows"}.';
   const res=await eachShot(files,prompt,900,st,$('#rnShotBtn'),r=>{(Array.isArray(r.readings)?r.readings:[]).forEach(x=>{const k=String(x.date||''); let w=Number(x.weight)||0; if(!/^\d{4}-\d{2}-\d{2}$/.test(k)||!(w>0)) return; if(/lb/i.test(x.unit||'')) w*=0.45359237; if(/st/i.test(x.unit||'')) w*=6.35029; if(w>=30&&w<=300&&k<=todayIso()) day[k]=Math.min(day[k]||999,w);});});
   const ks=Object.keys(day).sort(); ks.forEach(k=>{W()[k]=Math.round(day[k]*10)/10;}); if(ks.length){save(); render();}
   st.className=ks.length?'status ok':'status err'; st.textContent=(ks.length?'Read '+ks.length+' day'+(ks.length>1?'s':'')+' of weight ('+ks.map(k=>k.slice(5)+': '+W()[k]).slice(-4).join(', ')+' kg). Check them against the app.':'No weights were read.')+(res.bad.length?' '+res.bad.length+' failed: '+res.bad[0]:'');};
+
+/* ---------- food list import, online check of estimates ---------- */
+function importFoodList(arr){if(!Array.isArray(arr)) throw new Error('not a food list'); const have=new Set(state.library.map(f=>String(f.name).toLowerCase())); let added=0, skipped=0;
+  arr.forEach(a=>{const o=Array.isArray(a)?{name:a[0],kcal:a[1],p:a[2],c:a[3],f:a[4],grams:a[5]}:a; const name=String(o&&o.name||'').trim(), kc=Number(o&&o.kcal); if(!name||!(kc>=0)) return; if(have.has(name.toLowerCase())){skipped++; return;}
+    const f={name,kcal:Math.round(kc),p:Number(o.p)||0,c:Number(o.c)||0,f:Number(o.f)||0,est:true,from:'list'}; if(Number(o.grams)>0) f.grams=Math.round(Number(o.grams)); state.library.push(f); have.add(name.toLowerCase()); added++;}); return {added,skipped};}
+async function webFill(food){const isG=per100(food.name), q=food.name.replace(/\s*\((?:[^()]|\([^()]*\))*\)\s*$/,'').replace(/,/g,' ').replace(/\s+/g,' ').trim(); const hits=await offSearch(q,null);
+  const ts=q.toLowerCase().split(/[^a-z0-9]+/).filter(t=>t.length>2); let best=null, bs=0; hits.forEach(hh=>{const n=hh.name.toLowerCase(), sc=ts.filter(t=>n.includes(t)).length; if(sc>bs){bs=sc; best=hh;}});
+  if(!best||bs<Math.max(1,Math.ceil(ts.length/2))) return false; const p100=per100(best.name); let k=null; if(isG&&p100) k=1; else if(!isG&&!p100) k=1; else if(!isG&&p100&&best.grams>0) k=best.grams/100; if(k==null) return false;
+  const kc=Math.round(best.kcal*k); if(food.kcal>0&&(kc<food.kcal*0.65||kc>food.kcal*1.35)) return false;
+  Object.assign(food,{kcal:kc,p:r1(best.p*k),c:r1(best.c*k),f:r1(best.f*k),web:best.name.replace(/\s*\(100 ?g\)\s*$/i,'')}); XK.forEach(x=>{if(best[x]>0) food[x]=r1(best[x]*k);}); delete food.est; return true;}
+let webBusy=false;
+$('#webAll').onclick=async()=>{const st=$('#webStatus'), btn=$('#webAll'); if(webBusy){webBusy=false; return;} const list=state.library.filter(f=>f.est); if(!list.length) return; webBusy=true; btn.textContent='Stop'; let ok=0, fail=0, i=0;
+  for(const f of list){if(!webBusy) break; i++; st.className='status'; st.textContent=i+' of '+list.length+': '+f.name.slice(0,26)+'…'; try{if(await webFill(f)) ok++;}catch(e){fail++; if(fail>=3&&ok===0){st.className='status err'; st.textContent='The product database is not answering. Try again later.'; break;}}
+    if(i%5===0) save(true); await new Promise(r=>setTimeout(r,6500));}
+  const stopped=!webBusy; webBusy=false; save(); render(); if(!(fail>=3&&ok===0)){st.className='status ok'; st.textContent=(stopped?'Stopped. ':'Done. ')+ok+' matched to products online, '+(i-ok)+' kept as estimates (no close match).';}};
 
 /* ---------- recipes ---------- */
 const REC=()=>state.recDraft||(state.recDraft={name:'',servings:2,cooked:0,items:[]});
