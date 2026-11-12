@@ -466,6 +466,13 @@ details[open]>.sec-sum{margin-bottom:10px}
     <div id="mlList"></div>
   </section>
   <section class="card">
+    <div class="sec-head"><h2>Import from Cronometer</h2></div>
+    <p class="small muted" style="margin:0 0 10px">On the Cronometer website: Settings, Account, Account Data, Export Data. Pick a date range (a few months is plenty) and choose Export Servings. Then select that file here. Every food you logged is added to your foods, most-eaten first.</p>
+    <div class="row"><input type="file" id="crFile" accept=".csv,text/csv,text/plain"></div>
+    <label class="check" style="margin-top:8px"><input type="checkbox" id="crHist"> Also copy the daily history into Stoke</label>
+    <div class="status" id="crStatus"></div>
+  </section>
+  <section class="card">
     <div class="sec-head"><h2>My foods</h2><span class="small num" id="libCount"></span></div>
     <input type="text" id="libSearch" placeholder="Filter">
     <div id="libList" style="margin-top:8px"></div>
@@ -1095,6 +1102,26 @@ function renderMeals(){const ms=state.meals||[], box=$('#mlList'); box.innerHTML
     r.innerHTML='<div class="nm" style="min-width:0;overflow-wrap:anywhere">'+esc(m.name)+'<div class="macro faint small">'+esc(m.items.map(f=>f.name).join(', ').slice(0,90))+'</div></div><div class="num" style="color:var(--in);font-weight:600">'+fmt(k)+'</div>';
     const lg=document.createElement('button'); lg.className='btn ghost sm'; lg.textContent='Log'; lg.onclick=()=>logItems(m.items,'Meal logged'); r.appendChild(lg);
     const del=document.createElement('button'); del.className='x'; del.textContent='×'; del.setAttribute('aria-label','Delete meal'); del.onclick=()=>{state.meals=ms.filter(x=>x!==m); save(); render(); toast('Meal deleted');}; r.appendChild(del); box.appendChild(r);});}
+
+/* ---------- Cronometer import ---------- */
+function importCrono(text,withHistory){const rows=parseCSV(text); if(rows.length<2) throw new Error('the file has no rows');
+  const head=rows[0].map(x=>x.trim().toLowerCase()), col=(...names)=>{for(const n of names){const i=head.findIndex(x=>x===n||x.indexOf(n)===0); if(i>=0) return i;} return -1;};
+  const iDay=col('day','date'), iName=col('food name','name'), iAmt=col('amount','quantity'), iK=col('energy (kcal)','energy','calories'), iP=col('protein (g)','protein'), iC=col('carbs (g)','carbs','carbohydrates'), iF=col('fat (g)','fat'), iFb=col('fiber (g)','fiber','fibre'), iSu=col('sugars (g)','sugars','sugar'), iNa=col('sodium (mg)','sodium'), iAl=col('alcohol (g)','alcohol'), iGrp=col('group','meal'), iTime=col('time');
+  if(iName<0||iK<0) throw new Error('this does not look like a Cronometer servings export (no Food Name or Energy column)');
+  const v=(r,i)=>i>=0?(parseFloat(String(r[i]).replace(/,/g,''))||0):0, foods={}, hours={breakfast:8,lunch:13,dinner:19,snacks:16}; let entries=0, days={};
+  rows.slice(1).forEach(r=>{const name=(r[iName]||'').trim(); if(!name) return; const kcal=v(r,iK); const am=String(iAmt>=0?r[iAmt]:'').trim().match(/^([\d.,]+)\s*(.*)$/); const qty=am?parseFloat(am[1].replace(/,/g,''))||1:1, unit=am?am[2].trim():'';
+    const isG=/^(g|grams?)$/i.test(unit), key=name.toLowerCase()+'|'+(isG?'g':unit.toLowerCase()); const f=foods[key]||(foods[key]={name,unit,isG,n:0,q:0,kcal:0,p:0,c:0,f:0,fb:0,su:0,sa:0,al:0,amts:[]});
+    f.n++; f.q+=qty; f.kcal+=kcal; f.p+=v(r,iP); f.c+=v(r,iC); f.f+=v(r,iF); f.fb+=v(r,iFb); f.su+=v(r,iSu); f.sa+=v(r,iNa)*2.5/1000; f.al+=v(r,iAl); f.amts.push(qty); entries++;
+    if(withHistory&&iDay>=0){const k=toIso(r[iDay]); if(k){const grp=iGrp>=0?String(r[iGrp]).trim().toLowerCase():''; let hr=hours[grp]||12; if(iTime>=0){const tm=String(r[iTime]).match(/(\d{1,2}):(\d{2})\s*(am|pm)?/i); if(tm){hr=parseInt(tm[1],10)%12+(tm[3]&&/pm/i.test(tm[3])?12:0); if(!tm[3]) hr=parseInt(tm[1],10);}}
+        (days[k]=days[k]||[]).push({name:name+(am?' ('+am[1].replace(/\.0+$/,'')+(unit?' '+unit:'')+')':''),kcal:Math.round(kcal),p:r1(v(r,iP)),c:r1(v(r,iC)),f:r1(v(r,iF)),fb:r1(v(r,iFb)),su:r1(v(r,iSu)),sa:r1(v(r,iNa)*2.5/1000),al:r1(v(r,iAl)),qty:1,h:hr});}}});
+  let added=0, updated=0; Object.values(foods).forEach(f=>{if(!(f.q>0)) return; const k=f.isG?100/f.q:1/f.q, med=f.amts.slice().sort((a,b)=>a-b)[Math.floor(f.amts.length/2)];
+    const u=f.unit.replace(/^[\d.]+\s*/,'').slice(0,30), full=f.name+(f.isG?' (100 g)':(u?' (1 '+u+')':''));
+    const food={name:full,kcal:Math.round(f.kcal*k),p:r1(f.p*k),c:r1(f.c*k),f:r1(f.f*k),uses:f.n,from:'cronometer'}; if(f.isG) food.grams=Math.round(med); XK.forEach(x=>{const val=r1(f[x]*k); if(val>0) food[x]=val;});
+    const ex=state.library.find(x=>x.name.toLowerCase()===full.toLowerCase()); if(ex){Object.assign(ex,food,{uses:Math.max(ex.uses||0,f.n)}); updated++;} else {state.library.push(food); added++;}});
+  let hist=0; if(withHistory) Object.keys(days).forEach(k=>{const d=dayRec(k); if(d.food.some(x=>x.src==='cronometer')) return; days[k].forEach((e,i)=>{XK.forEach(x=>{if(!(e[x]>0)) delete e[x];}); d.food.push(Object.assign(e,{id:'cr'+k+i,src:'cronometer'}));}); hist++;});
+  return {entries,added,updated,hist,top:Object.values(foods).sort((a,b)=>b.n-a.n).slice(0,3).map(f=>f.name+' ×'+f.n)};}
+$('#crFile').onchange=e=>{const f=e.target.files&&e.target.files[0], st=$('#crStatus'); if(!f) return; st.className='status'; st.textContent='Reading…'; const rd=new FileReader();
+  rd.onload=()=>{try{const r=importCrono(String(rd.result),$('#crHist').checked); save(); render(); st.className='status ok'; st.textContent='Read '+r.entries+' logged servings: '+r.added+' foods added, '+r.updated+' updated'+(r.hist?', '+r.hist+' days of history copied':'')+'. Most eaten: '+r.top.join(', ')+'.'; toast('Cronometer foods imported');}catch(err){st.className='status err'; st.textContent='Could not import: '+err.message+'.';}}; rd.readAsText(f); e.target.value='';};
 
 /* ---------- recipes ---------- */
 const REC=()=>state.recDraft||(state.recDraft={name:'',servings:2,cooked:0,items:[]});
