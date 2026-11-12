@@ -347,6 +347,11 @@ details[open]>.sec-sum{margin-bottom:10px}
 <section class="card">
     <div class="sec-head"><h2>Weight &amp; real burn</h2><span class="chip" id="tdeeChip">needs data</span></div>
     <div class="field"><label for="wKg">Weight kg, <span id="wDate">today</span></label><input type="number" id="wKg" min="30" max="300" step="0.1" placeholder="e.g. 62.4"></div>
+    <details><summary>Import from a Renpho scale</summary>
+      <div class="note" style="margin-top:8px">Export your measurements from the Renpho Health app as a CSV (it usually arrives by email), save the attachment, then choose it here. Any CSV with a date column and a weight column works, in kg, lb or stone. If Renpho is set to sync with Apple Health, the Apple Health import on the Sources tab now brings weight in too.</div>
+      <div class="row" style="margin-top:8px"><input type="file" id="rnFile" accept=".csv,text/csv,text/plain"></div>
+      <div class="status" id="rnStatus"></div>
+    </details>
     <div class="chart-wrap" id="wChart" style="margin-top:10px"></div>
     <p class="small muted" id="tdeeNote" style="margin:10px 0 0"></p>
     <div class="row" style="margin-top:8px"><button type="button" class="btn sm" id="tdeeUse" hidden>Use as my burn</button></div>
@@ -781,11 +786,12 @@ $('#csvFile').onchange=e=>{const f=e.target.files[0]; if(f) readFile(f,t=>import
 function importAppleXml(file,st){const CH=8*1024*1024; let off=0,carry='',active={},basal={},n=0; st.className='status'; st.textContent='Reading 0%…';
   const rxSum=/<ActivitySummary\b[^>]*?dateComponents="(\d{4}-\d{2}-\d{2})"[^>]*?activeEnergyBurned="([\d.]+)"/g;
   const rxRec=/<Record\b[^>]*?type="HKQuantityTypeIdentifierBasalEnergyBurned"[^>]*?startDate="(\d{4}-\d{2}-\d{2})[^"]*"[^>]*?value="([\d.]+)"/g;
+  const rxW=/<Record\b[^>]*?type="HKQuantityTypeIdentifierBodyMass"[^>]*?unit="([^"]+)"[^>]*?startDate="(\d{4}-\d{2}-\d{2})[^"]*"[^>]*?value="([\d.]+)"/g, wts={};
   function step(){if(off>=file.size){finish();return;} const r=new FileReader(); r.onload=()=>{let text=carry+r.result; const cut=text.lastIndexOf('<'); carry=text.slice(cut); text=text.slice(0,cut);
-    let m; while((m=rxSum.exec(text))) active[m[1]]=parseFloat(m[2]); while((m=rxRec.exec(text))) basal[m[1]]=(basal[m[1]]||0)+parseFloat(m[2]);
+    let m; while((m=rxSum.exec(text))) active[m[1]]=parseFloat(m[2]); while((m=rxRec.exec(text))) basal[m[1]]=(basal[m[1]]||0)+parseFloat(m[2]); while((m=rxW.exec(text))){let w=parseFloat(m[3]); if(/lb/i.test(m[1])) w*=0.45359237; if(w>=30&&w<=300) wts[m[2]]=Math.min(wts[m[2]]||999,w);}
     off+=CH; st.textContent='Reading '+Math.min(100,Math.round(off/file.size*100))+'%…'; setTimeout(step,0);}; r.readAsText(file.slice(off,off+CH));}
-  function finish(){Object.entries(active).forEach(([k,v])=>{setBurn(k,'apple','active',Math.round(v)); n++;}); Object.entries(basal).forEach(([k,v])=>{if(v>300) setBurn(k,'apple','resting',Math.round(v));}); save(); render();
-    st.className='status ok'; st.textContent='Imported '+n+' days of Apple Watch active energy'+(Object.keys(basal).length?' and resting energy':'')+'.';}
+  function finish(){Object.entries(active).forEach(([k,v])=>{setBurn(k,'apple','active',Math.round(v)); n++;}); Object.entries(basal).forEach(([k,v])=>{if(v>300) setBurn(k,'apple','resting',Math.round(v));}); Object.entries(wts).forEach(([k,v])=>{W()[k]=Math.round(v*10)/10;}); save(); render();
+    st.className='status ok'; st.textContent='Imported '+n+' days of Apple Watch active energy'+(Object.keys(basal).length?' and resting energy':'')+(Object.keys(wts).length?', plus '+Object.keys(wts).length+' days of weight':'')+'.';}
   step();}
 $('#appleFile').onchange=e=>{const f=e.target.files[0]; if(!f) return; if(/\.xml$/i.test(f.name)) importAppleXml(f,$('#appleStatus')); else readFile(f,t=>importCSV(t,'apple',$('#appleStatus')));};
 
@@ -1122,6 +1128,22 @@ function importCrono(text,withHistory){const rows=parseCSV(text); if(rows.length
   return {entries,added,updated,hist,top:Object.values(foods).sort((a,b)=>b.n-a.n).slice(0,3).map(f=>f.name+' ×'+f.n)};}
 $('#crFile').onchange=e=>{const f=e.target.files&&e.target.files[0], st=$('#crStatus'); if(!f) return; st.className='status'; st.textContent='Reading…'; const rd=new FileReader();
   rd.onload=()=>{try{const r=importCrono(String(rd.result),$('#crHist').checked); save(); render(); st.className='status ok'; st.textContent='Read '+r.entries+' logged servings: '+r.added+' foods added, '+r.updated+' updated'+(r.hist?', '+r.hist+' days of history copied':'')+'. Most eaten: '+r.top.join(', ')+'.'; toast('Cronometer foods imported');}catch(err){st.className='status err'; st.textContent='Could not import: '+err.message+'.';}}; rd.readAsText(f); e.target.value='';};
+
+/* ---------- scale import (Renpho or any weight CSV) ---------- */
+function importWeights(text){const rows=parseCSV(String(text).replace(/^﻿/,'')); if(rows.length<2) throw new Error('the file has no rows'); const head=rows[0].map(x=>x.trim().toLowerCase());
+  const iD=head.findIndex(x=>/time|date|day/.test(x)), iW=head.findIndex(x=>/weight|body ?mass/.test(x)&&!/fat|muscle|lean|bone|goal|target|water/.test(x)), iB=head.findIndex(x=>/bmr/.test(x)); if(iD<0||iW<0) throw new Error('no date and weight columns found');
+  let unit=/\blb|pound/.test(head[iW])?'lb':/\(st\)|stone/.test(head[iW])?'st':'kg';
+  const dm=rows.slice(1).map(r=>String(r[iD]).trim().match(/^(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{2,4})/)).filter(Boolean), dayFirst=dm.some(m=>+m[1]>12)?true:dm.some(m=>+m[2]>12)?false:true;
+  const key=s=>{s=String(s).trim(); let m; if((m=s.match(/^(\d{4})[\/.\-](\d{1,2})[\/.\-](\d{1,2})/))) return m[1]+'-'+pad(+m[2])+'-'+pad(+m[3]); if((m=s.match(/^(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{2,4})/))){const y=m[3].length===2?'20'+m[3]:m[3]; return y+'-'+pad(+(dayFirst?m[2]:m[1]))+'-'+pad(+(dayFirst?m[1]:m[2]));} return toIso(s);};
+  const day={}; let bmr=null, bmrKey='';
+  rows.slice(1).forEach(r=>{const k=key(r[iD]), cell=String(r[iW]||''); let w=parseFloat(cell.replace(',','.').replace(/[^\d.]/g,'')); if(!k||!(w>0)) return; const u=/lb/i.test(cell)?'lb':/st/i.test(cell)?'st':unit; if(u==='lb') w*=0.45359237; if(u==='st') w*=6.35029; if(w<30||w>300) return;
+    day[k]=Math.min(day[k]||999,w); if(iB>=0){const b=parseFloat(String(r[iB]).replace(/[^\d.]/g,'')); if(b>500&&k>=bmrKey){bmr=Math.round(b); bmrKey=k;}}});
+  const ks=Object.keys(day).sort(); if(!ks.length) throw new Error('no usable weights found'); ks.forEach(k=>{W()[k]=Math.round(day[k]*10)/10;});
+  return {n:ks.length,first:ks[0],last:ks[ks.length-1],latest:W()[ks[ks.length-1]],bmr};}
+$('#rnFile').onchange=e=>{const f=e.target.files&&e.target.files[0], st=$('#rnStatus'); if(!f) return; const rd=new FileReader();
+  rd.onload=()=>{try{const r=importWeights(rd.result); save(); render(); const dd=k=>new Date(k+'T12:00:00').toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'});
+      st.className='status ok'; st.textContent='Imported '+r.n+' days of weight, '+dd(r.first)+' to '+dd(r.last)+' (latest '+r.latest+' kg). Where a day had several readings, the lowest is kept.'+(r.bmr?' Renpho puts your BMR at '+fmt(r.bmr)+' kcal; Stoke is using '+fmt(state.settings.bmr)+', which you can change under Set.':''); toast('Weights imported');}
+    catch(err){st.className='status err'; st.textContent='Could not import: '+err.message+'.';}}; rd.readAsText(f); e.target.value='';};
 
 /* ---------- recipes ---------- */
 const REC=()=>state.recDraft||(state.recDraft={name:'',servings:2,cooked:0,items:[]});
