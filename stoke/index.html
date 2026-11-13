@@ -519,7 +519,7 @@ details[open]>.sec-sum{margin-bottom:10px}
     <div class="sec-head"><h2>You</h2></div>
     <div class="grid g2">
       <div class="field"><label for="sBmr">BMR kcal/day</label><input type="number" id="sBmr" min="800" step="10"></div>
-      <div class="field"><label for="sMode">Target type</label><select id="sMode"><option value="intake">Fixed intake</option><option value="net">Net vs burn</option></select></div><div class="field"><label for="sGoal" id="sGoalLab">Intake kcal/day</label><input type="number" id="sGoal" step="50"></div><div class="field"><label for="sEat">Exercise eaten back %</label><input type="number" id="sEat" min="0" max="100" step="10"></div><div class="field"><label for="sZoom">Text size</label><select id="sZoom"><option value="0.84">Smallest</option><option value="0.92">Small</option><option value="1">Standard</option><option value="1.08">Large</option></select></div>
+      <div class="field"><label for="sMode">Target type</label><select id="sMode"><option value="intake">Fixed intake</option><option value="net">Net vs burn</option></select></div><div class="field"><label for="sGoal" id="sGoalLab">Intake kcal/day</label><input type="number" id="sGoal" step="50"></div><div class="field"><label for="sEat">Exercise eaten back %</label><input type="number" id="sEat" min="0" max="100" step="10"></div><div class="field"><label for="sChips">One-tap chips under Log food</label><select id="sChips"><option value="">Hidden</option><option value="1">Shown</option></select></div><div class="field"><label for="sZoom">Text size</label><select id="sZoom"><option value="0.84">Smallest</option><option value="0.92">Small</option><option value="1">Standard</option><option value="1.08">Large</option></select></div>
     </div>
     <p class="small muted" style="margin:10px 0 0">Target is net kcal: −200 means aim to eat 200 below burn. 0 holds weight. Fixed intake is the same kcal ceiling every day, whatever you burn. Logged exercise raises a fixed intake target by the percentage set here. Your BMR is used whenever a source gives only active kcal; estimate it below if unsure.</p>
     <details><summary>Estimate BMR (Mifflin–St Jeor)</summary>
@@ -1037,7 +1037,7 @@ function logItems(items,msg){const d=dayRec(cur); let t=0; items.forEach((f,i)=>
     if(per100(o.name)){const q=o.qty; o.name=o.name.replace(/\s*\(100 ?g\)\s*$/i,'')+' ('+Math.round(q*100)+' g)'; o.kcal=Math.round(o.kcal*q); o.p=r1(o.p*q); o.c=r1(o.c*q); o.f=r1(o.f*q); AK.forEach(k=>{if(o[k]) o[k]=r2(o[k]*q);}); o.qty=1;}
     d.food.push(o); t+=o.kcal*o.qty;}); save(); render(); toast((msg||'Logged')+' · '+fmt(t)+' kcal');}
 let quickAll=false;
-function renderQuick(){const row=$('#quickRow'); row.innerHTML=''; const defs=[];
+function renderQuick(){const row=$('#quickRow'); row.innerHTML=''; if(!state.settings.chips){row.hidden=true; return;} const defs=[];
   const y=new Date(cur+'T12:00:00'); y.setDate(y.getDate()-1); const yd=state.days[iso(y)]; const slot=slotOf(new Date().getHours()); const ys=yd?yd.food.filter(f=>slotOf(f.h)===slot):[];
   if(ys.length) defs.push(['Repeat yesterday’s '+SLOTS[slot][0].toLowerCase()+' · '+fmt(ys.reduce((a,f)=>a+f.kcal*f.qty,0)),()=>logItems(ys,'Repeated')]);
   (state.meals||[]).slice(-4).reverse().forEach(m=>defs.push([m.name+' · '+fmt(m.items.reduce((a,f)=>a+f.kcal*(f.qty||1),0)),()=>logItems(m.items,'Meal logged')]));
@@ -1153,9 +1153,10 @@ function renderMore(){
   const tgt=targetFor(cur,burnFor(cur).kcal), tail=' Tap any logged food on the Day tab to change its macros.';
   if(pm){const sum=m.p+m.c+m.f, g=macroTargets(cur); $('#mtNote').textContent=(sum===100?'Adds up to 100%.':'Adds up to '+sum+'%, not 100. Adjust, or use the button to fit carbs.')+' At today’s target of '+fmt(tgt)+' kcal that is '+g.p+' g protein, '+g.c+' g carbs and '+g.f+' g fat, and it moves when exercise raises the target.'+tail;}
   else{const kc=m.p*4+m.c*4+m.f*9; $('#mtNote').textContent=kc?'These add up to '+fmt(kc)+' kcal, against today’s target of '+fmt(tgt)+'.'+tail:'Leave blank for no target.'+tail;}
-  if(document.activeElement!==$('#shop')) $('#shop').value=state.settings.shop||''; $('#sEat').value=eatBack(); const tz=String(state.settings.textZoom||0.92); document.documentElement.style.setProperty('--z',tz); if(document.activeElement!==$('#sZoom')) $('#sZoom').value=tz; $('#keyCard').hidden=IN_VIEWER; syncGrams(); renderEx(); renderQuick(); renderWare(); renderRec(); renderMeals(); renderExtras(); renderNutri(); if(!webBusy){const ne=state.library.filter(f=>f.est).length; $('#webRow').hidden=!ne||IN_VIEWER; $('#webAll').textContent='Check '+ne+' estimate'+(ne===1?'':'s')+' online';} const n=(state.days[todayIso()]||{food:[]}).food.length; if(state.fast&&foodN!=null&&n>foodN) endFast(true); foodN=n; renderFast();}
+  if(document.activeElement!==$('#shop')) $('#shop').value=state.settings.shop||''; $('#sEat').value=eatBack(); const tz=String(state.settings.textZoom||0.92); document.documentElement.style.setProperty('--z',tz); if(document.activeElement!==$('#sZoom')) $('#sZoom').value=tz; $('#sChips').value=state.settings.chips?'1':''; $('#keyCard').hidden=IN_VIEWER; syncGrams(); renderEx(); renderQuick(); renderWare(); renderRec(); renderMeals(); renderExtras(); renderNutri(); if(!webBusy){const ne=state.library.filter(f=>f.est).length; $('#webRow').hidden=!ne||IN_VIEWER; $('#webAll').textContent='Check '+ne+' estimate'+(ne===1?'':'s')+' online';} const n=(state.days[todayIso()]||{food:[]}).food.length; if(state.fast&&foodN!=null&&n>foodN) endFast(true); foodN=n; renderFast();}
 
 $('#shop').onchange=e=>{state.settings.shop=e.target.value; save();};
+$('#sChips').onchange=e=>{state.settings.chips=!!e.target.value; save(); render();};
 $('#sZoom').onchange=e=>{state.settings.textZoom=Number(e.target.value)||0.92; save(); render();};
 
 /* ---------- create a food, saved meals ---------- */
