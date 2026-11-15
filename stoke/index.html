@@ -1395,8 +1395,15 @@ function dayStats(key){const d=state.days[key]||{food:[]}, s={kcal:0,p:0,fb:0,es
 function dayScore(key){const s=dayStats(key); if(!s.kcal) return null; const t=targetFor(key,burnFor(key).kcal), r=t>0?s.kcal/t:1, cal=r>=0.9&&r<=1?40:r<0.9?40*r/0.9:40*Math.max(0,1-(r-1)/0.25);
   const pt=macroTargets(key).p, pro=pt>0?25*Math.min(1,s.p/pt):25*Math.min(1,(s.p*4/s.kcal)/0.25), fib=15*Math.min(1,s.fb/30), qual=10*(1-s.est/s.kcal), wat=10*Math.min(1,s.water/2000);
   return {total:Math.round(cal+pro+fib+qual+wat),cal:Math.round(cal),pro:Math.round(pro),fib:Math.round(fib),qual:Math.round(qual),wat:Math.round(wat)};}
+function overPlan(over){const by={}; ((state.days[cur]||{}).food||[]).forEach(f=>{const n=f.name.replace(/\s*\([^()]*\)\s*$/,'')||f.name, o=by[n]||(by[n]={n,k:0,p:0}); o.k+=f.kcal*f.qty; o.p+=(f.p||0)*f.qty;});
+  const all=Object.values(by).filter(x=>x.k>=40), low=all.filter(x=>x.p*4/x.k<0.25).sort((a,b)=>b.k-a.k), cand=(low.length?low:all.sort((a,b)=>b.k-a.k)).slice(0,4);
+  const n=3, CAP=150, per=Math.min(CAP,Math.ceil(over/n/10)*10), got=per*n, rest=Math.max(0,over-got);
+  let h='<p class="small muted" style="margin:8px 0 6px">'+fmt(over)+' kcal over today. '+(cand.length?(low.length?'Easiest things to trim tomorrow, from what you ate today (big on calories, light on protein):':'Biggest items today, if you want to trim tomorrow:'):'Nothing logged today stands out to trim.')+'</p>';
+  if(cand.length) h+='<table class="src-table">'+cand.map(x=>'<tr><td>'+esc(x.n)+'</td><td class="n">'+fmt(x.k)+'</td><td class="n">half saves '+fmt(x.k/2)+'</td></tr>').join('')+'</table>';
+  h+='<p class="small muted" style="margin:8px 0 0">'+'To even it out, eat '+fmt(per)+' kcal less on each of the next '+n+' days'+(rest>0?'. That recovers '+fmt(got)+'; the other '+fmt(rest)+' is best left, as paybacks are capped at '+CAP+' a day so no day drops too low.':'.')+(state.settings.bank?' Weekly banking is on, so the daily target already adjusts for this.':'')+'</p>'; return h;}
 function renderFit(){const s=dayStats(cur), t=targetFor(cur,burnFor(cur).kcal), left=Math.round(t-s.kcal), pt=macroTargets(cur).p, gap=pt>0?Math.max(0,pt-s.p):0;
-  $('#fitLeft').textContent=left>30?fmt(left)+' kcal left'+(gap>1?' \u00b7 '+Math.round(gap)+' g protein to go':''):'at target'; const box=$('#fitList'); if(!$('#fitBox').open) return; box.innerHTML='';
+  $('#fitLeft').textContent=left>30?fmt(left)+' kcal left'+(gap>1?' \u00b7 '+Math.round(gap)+' g protein to go':''):left<-30?fmt(-left)+' kcal over':'at target'; const box=$('#fitList'); if(!$('#fitBox').open) return; box.innerHTML='';
+  if(left<-30){box.innerHTML=overPlan(-left); return;}
   if(left<=30){box.innerHTML='<div class="empty">You are at your target for today.</div>'; return;}
   const opts=state.library.map(f=>{const p1=per100(f.name), q=p1?(f.grams||100)/100:1; return {f,q,kc:f.kcal*q,pr:(f.p||0)*q,amt:p1?Math.round(q*100)+' g':'1 portion'};}).filter(o=>o.kc>=20&&o.kc<=left);
   if(!opts.length){box.innerHTML='<div class="empty">'+(state.library.length?'Nothing in your foods fits '+fmt(left)+' kcal at its usual amount.':'Your foods list is empty. Log a few foods and suggestions appear here.')+'</div>'; return;}
