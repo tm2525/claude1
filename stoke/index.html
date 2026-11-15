@@ -214,7 +214,10 @@ details[open]>.sec-sum{margin-bottom:10px}
       <button type="button" class="btn sm" id="fastBtn">Start fast</button>
     </div>
     <div id="fastNote" hidden style="margin-top:8px;padding:8px 10px;border-left:4px solid var(--in);background:var(--in-soft);border-radius:0 4px 4px 0;font-weight:600"></div>
-    <details style="margin-top:8px"><summary>Fast note and start time</summary>
+    <div class="small muted" id="fastGoalLine" style="margin-top:8px"></div>
+    <details style="margin-top:8px"><summary>Fast goal, note and start time</summary>
+      <div class="row" style="margin-top:8px;gap:8px"><div class="field" style="flex:1"><label for="fastGoalH">Fast length goal</label><select id="fastGoalH"><option value="0">No goal</option><option value="12">12 hours</option><option value="14">14 hours</option><option value="16">16 hours</option><option value="18">18 hours</option></select></div><div class="field" style="flex:1"><label for="fastPerWk">How often</label><select id="fastPerWk"><option value="1">Once a week</option><option value="2">Twice a week</option><option value="3">3 times a week</option></select></div></div>
+      <div class="small muted" style="margin-top:6px">Any days count, so fit them around your shifts. The week runs Monday to Sunday.</div>
       <div class="field" id="fastEdit" style="margin-top:8px" hidden><label for="fastStart">Started</label><input type="datetime-local" id="fastStart"></div>
       <div class="field" style="margin-top:8px"><label for="fastNoteIn">Note shown while fasting</label><input type="text" id="fastNoteIn" placeholder="e.g. No peanut butter. Tea instead."></div>
       <div class="field" style="margin-top:8px"><label for="fastWatch">Show the note if I start to log</label><input type="text" id="fastWatch" placeholder="peanut butter, biscuits"></div>
@@ -1315,13 +1318,21 @@ let foodN=null;
 const hm=ms=>{const m=Math.max(0,Math.floor(ms/60000)); return Math.floor(m/60)+'h '+String(m%60).padStart(2,'0')+'m';};
 const when=t=>new Date(t).toLocaleString('en-GB',{weekday:'short',hour:'2-digit',minute:'2-digit'});
 function endFast(auto){const f=state.fast; if(!f) return; const e=Date.now(); state.fasts=(state.fasts||[]).concat({s:f.start,e}).slice(-30); state.fast=null; save(!!auto); toast((auto?'Food logged, fast ended · ':'Fast ended · ')+hm(e-f.start));}
-function renderFast(){const f=state.fast, st=$('#fastState'), sub=$('#fastSub'), btn=$('#fastBtn'); $('#fastEdit').hidden=!f;
+function fastGoal(){const h=state.settings.fastGoalH; return h==null?16:Number(h)||0;}
+function fastGoalLine(){const g=fastGoal(), want=Number(state.settings.fastPerWk)||1; if(!g) return ''; const f=state.fast, G=g*3600000, wk=weekKeys(todayIso()), t0=new Date(wk[0]+'T00:00:00').getTime();
+  let done=(state.fasts||[]).filter(x=>x.e>=t0&&x.e-x.s>=G).length; const el=f?Date.now()-f.start:0, hit=f&&el>=G; if(hit) done++;
+  const left=6-wk.indexOf(todayIso()), tally=g+' h fasts this week: '+done+' of '+want+(done>=want?', goal met.':left>0?', '+left+' day'+(left>1?'s':'')+' left.':'.');
+  return (f?(hit?g+' h reached, '+hm(el-G)+' ago. ':hm(G-el)+' to go to '+g+' h, at '+when(f.start+G)+'. '):'')+tally;}
+function renderFast(){const f=state.fast, st=$('#fastState'), sub=$('#fastSub'), btn=$('#fastBtn'); $('#fastEdit').hidden=!f; $('#fastGoalLine').textContent=fastGoalLine(); if(document.activeElement!==$('#fastGoalH')) $('#fastGoalH').value=String(fastGoal()); if(document.activeElement!==$('#fastPerWk')) $('#fastPerWk').value=String(Number(state.settings.fastPerWk)||1);
+  if(f&&fastGoal()&&!f.told&&Date.now()-f.start>=fastGoal()*3600000){f.told=1; save(true); toast(fastGoal()+' hour fast reached');}
   const nt=(state.settings.fastNote||'').trim(), nb=$('#fastNote'); nb.hidden=!(f&&nt); nb.textContent=nt; if(document.activeElement!==$('#fastNoteIn')) $('#fastNoteIn').value=state.settings.fastNote||''; if(document.activeElement!==$('#fastWatch')) $('#fastWatch').value=state.settings.fastWatch||'';
   if(f){st.textContent=hm(Date.now()-f.start); sub.textContent='since '+when(f.start); btn.textContent='End fast'; btn.className='btn in sm'; const el=$('#fastStart'); if(document.activeElement!==el) el.value=new Date(f.start-new Date(f.start).getTimezoneOffset()*60000).toISOString().slice(0,16);}
   else{st.textContent='Not fasting'; const l=(state.fasts||[]).slice(-1)[0]; sub.textContent=l?'last fast '+hm(l.e-l.s)+', ended '+when(l.e):''; btn.textContent='Start fast'; btn.className='btn sm';}}
 $('#fastBtn').onclick=()=>{if(state.fast) endFast(false); else {state.fast={start:Date.now()}; save(); toast('Fast started');} renderFast();};
 $('#fastStart').onchange=e=>{const t=new Date(e.target.value).getTime(); if(state.fast&&t&&t<=Date.now()){state.fast.start=t; save();} renderFast();};
 setInterval(()=>{if(state.fast) renderFast();},30000);
+$('#fastGoalH').onchange=e=>{state.settings.fastGoalH=Number(e.target.value)||0; if(state.fast) delete state.fast.told; save(); renderFast();};
+$('#fastPerWk').onchange=e=>{state.settings.fastPerWk=Number(e.target.value)||1; save(); renderFast();};
 $('#fastNoteIn').onchange=e=>{state.settings.fastNote=e.target.value.trim(); save(); renderFast();};
 $('#fastWatch').onchange=e=>{state.settings.fastWatch=e.target.value.trim(); save();};
 function fastNudge(text){if(!state.fast) return; const ws=(state.settings.fastWatch||'').toLowerCase().split(',').map(s=>s.trim()).filter(Boolean), t=String(text).toLowerCase(); if(!ws.some(w=>t.includes(w))) return;
