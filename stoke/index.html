@@ -562,6 +562,7 @@ details[open]>.sec-sum{margin-bottom:10px}
   <section class="card" id="keyCard">
     <div class="sec-head"><h2>Claude features</h2><span class="chip" id="keyChip">off</span></div>
     <div class="field"><label for="sKey">Anthropic API key</label><input type="password" id="sKey" placeholder="sk-ant-…" autocomplete="off"></div>
+    <div class="row" style="margin-top:8px"><button type="button" class="btn ghost sm" id="keyTest">Test the key</button></div><div class="status" id="keyStatus" hidden></div>
     <p class="small muted" style="margin:10px 0 0">Powers meal and label photos, "Log it" from a typed description, and typical-value search on this home-screen version. Create a key at console.anthropic.com; it is stored only in this browser and sent only to api.anthropic.com. Each use costs a fraction of a penny.</p>
   </section>
   <section class="card">
@@ -870,10 +871,12 @@ async function offSearch(q,shop,tries){const F='product_name,brands,stores,servi
     catch(err){if(err&&err.message==='empty') throw err; if(i<n-1) await new Promise(r=>setTimeout(r,1500*(i+1)));}}
   throw new Error('unreachable');}
 function localSearch(q){const ts=q.toLowerCase().split(/[^a-z0-9]+/).filter(t=>t.length>1); if(!ts.length) return []; return withBuiltIn().map(f=>({f,n:ts.filter(t=>f.name.toLowerCase().includes(t)).length})).filter(x=>x.n>0).sort((x,y)=>y.n-x.n||(y.f.uses||0)-(x.f.uses||0)).slice(0,8).map(x=>({name:x.f.name,kcal:x.f.kcal,p:x.f.p,c:x.f.c,f:x.f.f,src:x.f.starter?'built-in':'saved'}));}
+async function apiFail(r){let m=''; try{const j=await r.json(); m=(j&&j.error&&j.error.message)||'';}catch(e){} if(r.status===401) return {code:'bad_key',message:'API key rejected'}; if(r.status===429) return {code:'rate_limited',message:m};
+  if(/credit balance/i.test(m)) return {code:'upstream_error',message:'your Anthropic account has no credit; add some at console.anthropic.com under Billing'}; return {code:'upstream_error',message:'Anthropic replied '+r.status+(m?': '+m.slice(0,140):'')};}
 async function apiWeb(files,prompt,maxTok){const key=state.settings.apiKey; if(!key) throw {code:'no_key'}; const imgs=[]; for(const f of (files||[])) imgs.push({type:'image',source:{type:'base64',media_type:'image/jpeg',data:await shrink(f)}});
   const messages=[{role:'user',content:[...imgs,{type:'text',text:prompt}]}], srcs=[]; let j=null;
   for(let turn=0;turn<3;turn++){const r=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'content-type':'application/json','x-api-key':key,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify({model:'claude-sonnet-5-5',max_tokens:maxTok||1500,tools:[{type:'web_search_20250305',name:'web_search',max_uses:3}],messages})});
-    if(r.status===401) throw {code:'bad_key'}; if(r.status===429) throw {code:'rate_limited'}; if(!r.ok) throw {code:'upstream_error',message:'HTTP '+r.status};
+    if(!r.ok) throw await apiFail(r);
     j=await r.json(); (j.content||[]).forEach(c=>{if(c.type==='web_search_tool_result'&&Array.isArray(c.content)) c.content.forEach(x=>{if(x&&x.url) srcs.push(x.url);});});
     if(j.stop_reason!=='pause_turn') break; messages.push({role:'assistant',content:j.content});}
   const blocks=(j&&j.content)||[]; let last=-1; blocks.forEach((c,i)=>{if(c.type==='web_search_tool_result') last=i;}); const txt=c=>c.type==='text'?c.text:'';
@@ -887,7 +890,7 @@ async function claudeSearch(q){const wsh=curShop(); if(wsh&&(wsh.rest||wsh.web)&
   if(liveSample){const r=await liveSample.json(prompt,{modelTier:'quick'}); return (Array.isArray(r)?r:[]).map(x=>({name:String(x.name||q),kcal:Math.round(Number(x.kcal)||0),p:Number(x.protein)||0,c:Number(x.carbs)||0,f:Number(x.fat)||0,src:'Claude'}));}
   const key=state.settings.apiKey; if(!key) throw {code:'no_key'};
   const r=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'content-type':'application/json','x-api-key':key,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify({model:'claude-haiku-5-5',max_tokens:500,messages:[{role:'user',content:prompt}]})});
-  if(!r.ok) throw {code:r.status===401?'bad_key':'upstream_error',message:'HTTP '+r.status};
+  if(!r.ok) throw await apiFail(r);
   const j=await r.json(); const t=(j.content||[]).filter(c=>c.type==='text').map(c=>c.text).join('\n'); const a=t.indexOf('['),b=t.lastIndexOf(']'); const arr=JSON.parse(t.slice(a,b+1));
   return arr.map(x=>({name:String(x.name||q),kcal:Math.round(Number(x.kcal)||0),p:Number(x.protein)||0,c:Number(x.carbs)||0,f:Number(x.fat)||0,src:'Claude'}));}
 function showLive(hits){sl.innerHTML=''; hits.slice(0,8).forEach(f=>{const b=document.createElement('button'); b.type='button'; b.className='sugg-item';
@@ -895,12 +898,12 @@ function showLive(hits){sl.innerHTML=''; hits.slice(0,8).forEach(f=>{const b=doc
   b.onclick=()=>fillFood(f); sl.appendChild(b);}); sl.classList.add('on');}
 $('#liveBtn').onclick=async()=>{const q=fName.value.trim(); const st=$('#liveStatus'); const btn=$('#liveBtn'); if(q.length<2){fName.focus();return;} if(/^\d{8,14}$/.test(q)){barLookup(q);return;}
   btn.disabled=true; st.hidden=false; st.className='status'; st.textContent='Searching… the product database is slow and often needs a few tries, so allow up to half a minute.'; sl.classList.remove('on');
-  let hits=[], via='', why='', ai='';
+  let hits=[], via='', why='', ai='', aiMsg='did not answer.';
   const shop=curShop();
   try{if(shop&&(shop.rest||shop.web)) throw new Error('skip'); hits=await offSearch(q,shop); via='Open Food Facts'+(shop?', '+shop.name+' only':'');}catch(e){why=e&&e.message||'unreachable';}
-  if(!hits.length){try{hits=await claudeSearch(q); via=hits[0]&&hits[0].site?'pages Claude found online ('+hits[0].site+'); check the figures':shop&&shop.rest?'Claude\u2019s knowledge of chain menus (check the current menu)':'Claude (typical '+(shop?shop.name+' ':'')+'values, check against the pack)';}catch(e){ai=e&&e.code||'failed';}}
+  if(!hits.length){try{hits=await claudeSearch(q); via=hits[0]&&hits[0].site?'pages Claude found online ('+hits[0].site+'); check the figures':shop&&shop.rest?'Claude\u2019s knowledge of chain menus (check the current menu)':'Claude (typical '+(shop?shop.name+' ':'')+'values, check against the pack)';}catch(e){ai=e&&e.code||'failed'; aiMsg=ai==='bad_key'?'rejected the API key; check it under Set.':ai==='rate_limited'?'is busy; try again in a minute.':(e&&e.message)?'failed ('+e.message+').':'could not be reached (no connection, or the request was blocked).';}}
   const online=hits.length>0; if(!online){hits=localSearch(q); via='your saved and built-in foods';}
-  const reason=why==='skip'?'This is looked up with Claude, which '+(ai==='no_key'?'needs an API key under Set.':'did not answer.'):why==='unreachable'?(IN_VIEWER?'The product database cannot be reached from inside Claude.':'The product database did not answer after four tries; it is often overloaded, so try again in a minute.'):'No '+(shop?shop.name+' ':'')+'product matched online.';
+  const reason=why==='skip'?'This is looked up with Claude, which '+(ai==='no_key'?'needs an API key under Set.':aiMsg):why==='unreachable'?(IN_VIEWER?'The product database cannot be reached from inside Claude.':'The product database did not answer after four tries; it is often overloaded, so try again in a minute.'):'No '+(shop?shop.name+' ':'')+'product matched online.';
   if(hits.length){showLive(hits); st.className='status ok'; st.textContent=online?hits.length+' result'+(hits.length>1?'s':'')+' from '+via+'. Pick one, then set portions.':reason+' Showing '+hits.length+' from '+via+'.';}
   else{st.className='status err'; st.textContent=reason+' Nothing saved or built in matches “'+q+'” either. Try a simpler name'+(ai==='no_key'&&!IN_VIEWER?', or add an API key under Set for typical values of any food.':', or enter the values by hand.');}
   btn.disabled=false;};
@@ -913,7 +916,7 @@ async function readViaApi(file,prompt,maxTok){const key=state.settings.apiKey; i
   const imgs=[]; for(const f of (Array.isArray(file)?file:[file])) imgs.push({type:'image',source:{type:'base64',media_type:'image/jpeg',data:await shrink(f)}});
   const r=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'content-type':'application/json','x-api-key':key,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
     body:JSON.stringify({model:'claude-sonnet-5-5',max_tokens:maxTok||400,messages:[{role:'user',content:[...imgs,{type:'text',text:prompt||PROMPT}]}]})});
-  if(r.status===401) throw {code:'bad_key',message:'API key rejected'}; if(r.status===429) throw {code:'rate_limited'}; if(!r.ok) throw {code:'upstream_error',message:'HTTP '+r.status};
+  if(!r.ok) throw await apiFail(r);
   const j=await r.json(); const t=(j.content||[]).filter(c=>c.type==='text').map(c=>c.text).join('\n'); return parseLoose(t);}
 (async()=>{
   const inp=$('#labelFile'), st=$('#labelStatus'), btn=$('#labelBtn');
@@ -1014,6 +1017,12 @@ $('#libSearch').oninput=renderLib;
 
 /* ---------- settings ---------- */
 function renderSettings(){$('#sBmr').value=state.settings.bmr; const im=state.settings.targetMode==='intake'; $('#sMode').value=im?'intake':'net'; $('#sGoal').value=im?state.settings.intake:state.settings.goal; $('#sGoalLab').textContent=im?'Intake kcal/day':'Net kcal vs burn'; $('#sKey').value=state.settings.apiKey||''; const kc=$('#keyChip'); kc.textContent=state.settings.apiKey?'key saved':'off'; kc.className='chip '+(state.settings.apiKey?'live':''); if(window.__refreshLabel) window.__refreshLabel();}
+$('#keyTest').onclick=async()=>{const st=$('#keyStatus'), key=(state.settings.apiKey||'').trim(); st.hidden=false; if(!key){st.className='status err'; st.textContent='No key saved. Paste it in the box above first.'; return;}
+  st.className='status'; st.textContent='Testing…';
+  try{const r=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'content-type':'application/json','x-api-key':key,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify({model:'claude-haiku-5-5',max_tokens:5,messages:[{role:'user',content:'Reply OK'}]})});
+    if(r.ok){st.className='status ok'; st.textContent='The key works. Photos, typed logging and online lookup are on.'; return;} const f=await apiFail(r); st.className='status err';
+    st.textContent=f.code==='bad_key'?'Anthropic rejected this key. Check it was copied whole (it starts sk-ant-), or create a new one at console.anthropic.com.':f.code==='rate_limited'?'The key is valid but rate limited right now; try again in a minute.':'The key was accepted but the request failed: '+f.message+'.';}
+  catch(e){st.className='status err'; st.textContent='Could not reach Anthropic at all. Check your connection, and turn off any content blocker or VPN for this app.';}};
 $('#sKey').onchange=e=>{state.settings.apiKey=e.target.value.trim(); save(); render(); toast(state.settings.apiKey?'Claude features on':'Claude features off');};
 $('#sBmr').onchange=e=>{const v=num(e.target.value); if(v){state.settings.bmr=v; save(); render();}};
 $('#sGoal').onchange=e=>{const v=num(e.target.value)||0; if(state.settings.targetMode==='intake') state.settings.intake=Math.max(0,v); else state.settings.goal=v; save(); render();};
@@ -1079,7 +1088,7 @@ async function viewerSample(){try{if(IN_VIEWER) return await claude.use('sample'
 async function textJSON(prompt,maxTok){const s=await viewerSample(); if(s) return s.json(prompt,{modelTier:'quick'});
   const key=state.settings.apiKey; if(!key) throw {code:'no_key'};
   const r=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'content-type':'application/json','x-api-key':key,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify({model:'claude-haiku-5-5',max_tokens:maxTok||700,messages:[{role:'user',content:prompt}]})});
-  if(r.status===401) throw {code:'bad_key'}; if(r.status===429) throw {code:'rate_limited'}; if(!r.ok) throw {code:'upstream_error',message:'HTTP '+r.status};
+  if(!r.ok) throw await apiFail(r);
   const j=await r.json(); return looseJSON((j.content||[]).filter(c=>c.type==='text').map(c=>c.text).join('\n'));}
 async function visionJSON(file,prompt,maxTok){const s=await viewerSample(); if(s) return s.json(prompt,{images:[file]}); return readViaApi(file,prompt,maxTok);}
 function aiErr(e){const c=e&&e.code; return c==='no_key'?'Add your Anthropic API key under Set to use this.':c==='bad_key'?'API key rejected; check it under Set.':c==='not_granted'||c==='sampling_disabled'?'Claude is not allowed for this page on this account.':c==='rate_limited'?'Too many requests; try again in a minute.':c==='nofood'?'Nothing to log in that ('+e.message+').':c==='invalid_json'?'Could not turn that into numbers; try rewording.':'Could not do that ('+(e&&e.message||'offline or blocked')+').';}
@@ -1131,7 +1140,9 @@ function offMicro(n,per){const s=per?'_100g':'_serving', v=(k,m)=>{const x=Numbe
 function offMap(p){const n=p.nutriments||{}; const k100=n['energy-kcal_100g'], kS=n['energy-kcal_serving']; if(k100==null&&kS==null) return null; const per=k100!=null;
   const g=x=>{const v=per?n[x+'_100g']:n[x+'_serving']; return v!=null?Math.round(v*10)/10:0;}; const br=Array.isArray(p.brands)?String(p.brands[0]||''):(p.brands?String(p.brands).split(',')[0].trim():''); let pn=p.product_name; if(pn&&typeof pn==='object') pn=pn.en||pn.main||Object.values(pn)[0]; const nm=(pn&&br&&String(pn).toLowerCase().startsWith(br.toLowerCase())?[pn]:[br,pn||'']).filter(Boolean).join(' ')||'Product';
   return {name:nm+(per?' (100 g)':(p.serving_size?' ('+p.serving_size+')':'')),kcal:Math.round(per?k100:kS),p:g('proteins'),c:g('carbohydrates'),f:g('fat'),fb:g('fiber'),su:g('sugars'),sa:g('salt'),...offMicro(n,per),grams:per?Math.round(Number(p.serving_quantity)||0):0,pack:Math.round(Number(p.product_quantity)||0),brand:br+' '+(Array.isArray(p.stores)?p.stores.join(' '):(p.stores||''))};}
-async function offCode(code){let r; try{r=await fetch('https://world.openfoodfacts.org/api/v2/product/'+code+'.json?fields=product_name,brands,serving_size,serving_quantity,product_quantity,nutriments');}catch(e){await new Promise(z=>setTimeout(z,1500));} if(!r||r.status>=500) r=await fetch('https://world.openfoodfacts.org/api/v2/product/'+code+'.json?fields=product_name,brands,serving_size,serving_quantity,product_quantity,nutriments'); if(r.status===404) return null; if(!r.ok) throw new Error('HTTP '+r.status); const j=await r.json(); return j&&j.product?offMap(j.product):null;}
+async function offCode(code){const u='https://world.openfoodfacts.org/api/v2/product/'+code+'.json?fields=product_name,brands,serving_size,serving_quantity,product_quantity,nutriments'; let last='offline';
+  for(let i=0;i<4;i++){try{const r=await fetch(u); if(r.status===404) return null; if(r.ok){const j=await r.json(); return j&&j.product?offMap(j.product):null;} last='HTTP '+r.status;}catch(e){last='no answer';} if(i<3) await new Promise(z=>setTimeout(z,1200*(i+1)));}
+  throw new Error(last+' after four tries');}
 let zxP=null; function loadZX(){return zxP||(zxP=new Promise((res,rej)=>{const s=document.createElement('script'); s.src='zxing.min.js'; s.onload=res; s.onerror=()=>{zxP=null; rej(new Error('scanner did not load'));}; document.head.appendChild(s);}));}
 function shrinkURL(file,max){return new Promise((res,rej)=>{const img=new Image(); const u=URL.createObjectURL(file); img.onload=()=>{URL.revokeObjectURL(u); const s=Math.min(1,max/Math.max(img.width,img.height)); const c=document.createElement('canvas'); c.width=Math.round(img.width*s); c.height=Math.round(img.height*s); c.getContext('2d').drawImage(img,0,0,c.width,c.height); res(c.toDataURL('image/jpeg',0.92));}; img.onerror=()=>{URL.revokeObjectURL(u); rej(new Error('bad image'));}; img.src=u;});}
 async function decodeBar(file){
