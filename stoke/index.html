@@ -208,6 +208,7 @@ details[open]>.sec-sum{margin-bottom:10px}
 <div class="view on" id="v-day">
   <div id="bkBanner" class="note banner" hidden><span id="bkBannerTxt"></span><button type="button" class="btn sm" id="bkBannerBtn" style="white-space:nowrap">Back up</button></div>
   <div id="lowBanner" class="note banner" hidden></div>
+  <div id="limBanner" hidden style="margin:0 0 10px;padding:8px 10px;border-left:4px solid var(--in);background:var(--in-soft);border-radius:0 4px 4px 0;font-weight:600"></div>
   <section class="card" style="padding:10px 14px">
     <div class="row" style="justify-content:space-between;flex-wrap:nowrap">
       <div style="min-width:0"><div class="eyebrow">Fast</div><div class="num" id="fastState" style="font-size:18px;font-weight:600">Not fasting</div><div class="small faint" id="fastSub"></div></div>
@@ -297,6 +298,10 @@ details[open]>.sec-sum{margin-bottom:10px}
     <div class="sec-head"><h2>Eaten</h2><span class="num small" id="dayCount"></span></div>
     <div id="foodLog"></div>
     <div class="small faint" id="dq" hidden></div>
+    <details style="margin-top:8px"><summary>Daily limit alert</summary>
+      <div class="row" style="margin-top:8px;gap:8px"><div class="field" style="flex:2"><label for="limFood">Food to watch</label><input type="text" id="limFood" placeholder="peanut butter" autocomplete="off"></div><div class="field" style="flex:1"><label for="limG">Limit g a day</label><input type="number" id="limG" min="0" step="5" placeholder="50"></div></div>
+      <div class="small muted" id="limNote" style="margin-top:6px"></div>
+    </details>
     <div class="row" style="margin-top:10px"><button type="button" class="btn ghost sm" id="cpPrev" hidden>Copy yesterday here</button><button type="button" class="btn ghost sm" id="cpNext" hidden>Copy this day to tomorrow</button></div>
   </section>
 
@@ -1459,7 +1464,13 @@ let tt; function toast(m){const t=$('#toast'); t.textContent=m; const can=!!undo
   if(can){const b=document.createElement('button'); b.type='button'; b.textContent='Undo'; b.style.cssText='margin-left:12px;background:none;border:1px solid currentColor;border-radius:3px;color:inherit;padding:2px 8px;font:inherit;cursor:pointer';
     b.onclick=()=>{try{state=JSON.parse(undoBuf);}catch(e){return;} save(true); undoBuf=null; render(); toast('Undone');}; t.appendChild(b);}
   t.classList.add('on'); clearTimeout(tt); tt=setTimeout(()=>{t.classList.remove('on'); undoBuf=null;},can?6000:1600);}
-function render(){EST=estimate(); renderHeader(); renderDay(); renderWeek(); renderSources(); renderLib(); renderSettings(); renderMore();}
+function limSet(){const L=state.settings.limit||(state.settings.limit={food:'peanut butter',g:50}); return L;}
+function limGrams(key){const L=limSet(), w=(L.food||'').trim().toLowerCase(); if(!w) return 0; let g=0; ((state.days[key]||{}).food||[]).forEach(f=>{if(!f.name.toLowerCase().includes(w)) return; const m=f.name.match(/(\d+(?:\.\d+)?)\s*g\s*\)+\s*$/i); g+=m?Number(m[1])*f.qty:/peanut butter/.test(w)?f.kcal*f.qty/6:0;}); return Math.round(g);}
+function renderLimit(){const L=limSet(), g=limGrams(cur), on=L.g>0&&(L.food||'').trim(), b=$('#limBanner'), hit=on&&g>=L.g; b.hidden=!hit; if(hit) b.textContent=(g>L.g?'Over':'At')+' your '+L.food+' limit: '+g+' g of '+L.g+' g today. No more today.';
+  if(document.activeElement!==$('#limFood')) $('#limFood').value=L.food||''; if(document.activeElement!==$('#limG')) $('#limG').value=L.g||''; $('#limNote').textContent=on?g+' g of '+L.g+' g so far '+(cur===todayIso()?'today':'this day')+'. Entries without a weight are not counted'+(/peanut butter/i.test(L.food)?', except peanut butter, estimated from its calories.':'.'):'No limit set.';
+  const d=state.days[cur]; if(d){if(hit&&!d.limTold){d.limTold=1; save(true); toast(L.food+' limit reached · '+g+' g');} else if(!hit&&d.limTold){delete d.limTold; save(true);}}}
+$('#limFood').onchange=e=>{limSet().food=e.target.value.trim(); save(); render();}; $('#limG').onchange=e=>{limSet().g=Math.max(0,num(e.target.value)||0); save(); render();};
+function render(){EST=estimate(); renderHeader(); renderDay(); renderWeek(); renderSources(); renderLib(); renderSettings(); renderMore(); renderLimit();}
 show((location.hash||'').replace('#',''));
 render();
 })();
