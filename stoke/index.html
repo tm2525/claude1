@@ -301,6 +301,8 @@ details[open]>.sec-sum{margin-bottom:10px}
     <details style="margin-top:8px"><summary>Daily limit alert</summary>
       <div class="row" style="margin-top:8px;gap:8px"><div class="field" style="flex:2"><label for="limFood">Food to watch</label><input type="text" id="limFood" placeholder="peanut butter" autocomplete="off"></div><div class="field" style="flex:1"><label for="limG">Limit g a day</label><input type="number" id="limG" min="0" step="5" placeholder="50"></div></div>
       <div class="small muted" id="limNote" style="margin-top:6px"></div>
+      <div class="row" style="margin-top:8px;gap:8px"><div class="field" style="flex:1"><label for="limSu">Sugar limit g a day</label><input type="number" id="limSu" min="0" step="5" placeholder="off"></div><div class="field" style="flex:1"><label for="limCb">Carb limit g a day</label><input type="number" id="limCb" min="0" step="5" placeholder="off"></div></div>
+      <div class="small muted" id="limNote2" style="margin-top:6px"></div>
     </details>
     <div class="row" style="margin-top:10px"><button type="button" class="btn ghost sm" id="cpPrev" hidden>Copy yesterday here</button><button type="button" class="btn ghost sm" id="cpNext" hidden>Copy this day to tomorrow</button></div>
   </section>
@@ -1466,9 +1468,15 @@ let tt; function toast(m){const t=$('#toast'); t.textContent=m; const can=!!undo
   t.classList.add('on'); clearTimeout(tt); tt=setTimeout(()=>{t.classList.remove('on'); undoBuf=null;},can?6000:1600);}
 function limSet(){const L=state.settings.limit||(state.settings.limit={food:'peanut butter',g:50}); return L;}
 function limGrams(key){const L=limSet(), w=(L.food||'').trim().toLowerCase(); if(!w) return 0; let g=0; ((state.days[key]||{}).food||[]).forEach(f=>{if(!f.name.toLowerCase().includes(w)) return; const m=f.name.match(/(\d+(?:\.\d+)?)\s*g\s*\)+\s*$/i); g+=m?Number(m[1])*f.qty:/peanut butter/.test(w)?f.kcal*f.qty/6:0;}); return Math.round(g);}
-function renderLimit(){const L=limSet(), g=limGrams(cur), on=L.g>0&&(L.food||'').trim(), b=$('#limBanner'), hit=on&&g>=L.g; b.hidden=!hit; if(hit) b.textContent=(g>L.g?'Over':'At')+' your '+L.food+' limit: '+g+' g of '+L.g+' g today. No more today.';
-  if(document.activeElement!==$('#limFood')) $('#limFood').value=L.food||''; if(document.activeElement!==$('#limG')) $('#limG').value=L.g||''; $('#limNote').textContent=on?g+' g of '+L.g+' g so far '+(cur===todayIso()?'today':'this day')+'. Entries without a weight are not counted'+(/peanut butter/i.test(L.food)?', except peanut butter, estimated from its calories.':'.'):'No limit set.';
-  const d=state.days[cur]; if(d){if(hit&&!d.limTold){d.limTold=1; save(true); toast(L.food+' limit reached · '+g+' g');} else if(!hit&&d.limTold){delete d.limTold; save(true);}}}
+function renderLimit(){const L=limSet(); if(L.su==null) L.su=50; if(L.cb==null) L.cb=125; const g=limGrams(cur), on=L.g>0&&(L.food||'').trim(), b=$('#limBanner'), fs=(state.days[cur]||{}).food||[];
+  const su=Math.round(fs.reduce((a,f)=>a+(f.su||0)*f.qty,0)), cb=Math.round(fs.reduce((a,f)=>a+(f.c||0)*f.qty,0)), suK=fs.reduce((a,f)=>a+(f.su>0?f.kcal*f.qty:0),0), allK=fs.reduce((a,f)=>a+f.kcal*f.qty,0);
+  const msgs=[]; if(on&&g>=L.g) msgs.push((g>L.g?'Over':'At')+' your '+L.food+' limit: '+g+' g of '+L.g+' g today. No more today.'); if(L.su>0&&su>=L.su) msgs.push((su>L.su?'Over':'At')+' your sugar limit: '+su+' g of '+L.su+' g today.'); if(L.cb>0&&cb>=L.cb) msgs.push((cb>L.cb?'Over':'At')+' your carb limit: '+cb+' g of '+L.cb+' g today.');
+  b.hidden=!msgs.length; b.innerHTML=msgs.map(esc).join('<br>');
+  if(document.activeElement!==$('#limFood')) $('#limFood').value=L.food||''; if(document.activeElement!==$('#limG')) $('#limG').value=L.g||''; if(document.activeElement!==$('#limSu')) $('#limSu').value=L.su||''; if(document.activeElement!==$('#limCb')) $('#limCb').value=L.cb||'';
+  $('#limNote').textContent=on?g+' g of '+L.g+' g so far '+(cur===todayIso()?'today':'this day')+'. Entries without a weight are not counted'+(/peanut butter/i.test(L.food)?', except peanut butter, estimated from its calories.':'.'):'No food limit set.';
+  $('#limNote2').textContent='Sugar '+su+' g'+(L.su>0?' of '+L.su:'')+', carbs '+cb+' g'+(L.cb>0?' of '+L.cb:'')+'.'+(allK>0&&suK<allK*0.95?' Sugar is known for foods covering '+Math.round(100*suK/allK)+'% of the day\u2019s calories, so the true figure may be higher.':'');
+  const d=state.days[cur], n=msgs.length; if(d){if(n>(d.limTold||0)){toast(msgs[n-1].split(':')[0]); d.limTold=n; save(true);} else if(n<(d.limTold||0)){d.limTold=n; if(!n) delete d.limTold; save(true);}}}
+$('#limSu').onchange=e=>{limSet().su=Math.max(0,num(e.target.value)||0); save(); render();}; $('#limCb').onchange=e=>{limSet().cb=Math.max(0,num(e.target.value)||0); save(); render();};
 $('#limFood').onchange=e=>{limSet().food=e.target.value.trim(); save(); render();}; $('#limG').onchange=e=>{limSet().g=Math.max(0,num(e.target.value)||0); save(); render();};
 function render(){EST=estimate(); renderHeader(); renderDay(); renderWeek(); renderSources(); renderLib(); renderSettings(); renderMore(); renderLimit();}
 show((location.hash||'').replace('#',''));
