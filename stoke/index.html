@@ -856,7 +856,7 @@ document.addEventListener('click',e=>{if(!e.target.closest('.sugg')) sl.classLis
 $('#foodForm').onsubmit=e=>{e.preventDefault(); if(isPer()&&fName.value.trim()&&!per100n(fName.value)) fName.value=fName.value.trim()+' (100 g)'; if(fName.value.trim()&&applyAmt()==null){$('#gramCalc').hidden=false; ($('#fPortGWrap').hidden?$('#fAmt'):$('#fPortG')).focus(); return;} const name=fName.value.trim(); const kcal=num($('#fKcal').value); if(!name||kcal==null){$('#numBox').open=true; (name?$('#fKcal'):fName).focus(); return;}
   const f={id:Date.now()+Math.random().toString(36).slice(2,6),name,kcal,p:num($('#fP').value)||0,c:num($('#fC').value)||0,f:num($('#fF').value)||0,qty:num($('#fQty').value)||1,h:new Date().getHours()};
   XK.forEach(k=>{let v=num($('#f_'+k).value); if(v>0) f[k]=k==='al'?Math.round(v*80)/10:v;}); if(curFood) MK.forEach(k=>{if(curFood[k]>0) f[k]=curFood[k];}); f.q=curFood&&(curFood.est||curFood.q==='e'||curFood.src==='Claude'||curFood.src==='built-in')?'e':'m';
-  dayRec(cur).food.push(f);
+  const xc=crossCheck(f); dayRec(cur).food.push(f); if(xc) setTimeout(()=>toast(xc+' estimate'+(xc>1?'s':'')+' in My foods confirmed from this'),1800);
   if($('#fSave').checked){const ex=state.library.find(x=>x.name.toLowerCase()===name.toLowerCase()); if(ex){Object.assign(ex,{kcal,p:f.p,c:f.c,f:f.f}); ex.uses=(ex.uses||0)+1;} else state.library.push({name,kcal,p:f.p,c:f.c,f:f.f,uses:1});}
   if(pendCode&&Date.now()-pendCode.t<600000&&$('#fSave').checked){const it=state.library.find(x=>x.name.toLowerCase()===name.toLowerCase()); if(it){state.library.forEach(x=>{if(x.code===pendCode.code) delete x.code;}); it.code=pendCode.code;}} pendCode=null;
   if($('#fSave').checked){const it=state.library.find(x=>x.name.toLowerCase()===name.toLowerCase()); const g=num($('#fGrams').value), pk=num($('#fPack').value); if(it){if(g) it.grams=g; if(pk) it.pack=pk; const pg=num($('#fPortG').value); if(pg>0&&!isPer()) it.portionG=pg; XK.forEach(k=>{if(f[k]) it[k]=f[k]; else delete it[k];});}}
@@ -1019,7 +1019,14 @@ function renderLib(){const q=$('#libSearch').value.trim().toLowerCase(); const l
     const add=document.createElement('button'); add.className='btn ghost sm'; add.textContent='Log'; add.onclick=()=>{if(/\(100 ?g\)\s*$/i.test(f.name)){fillFood(f); show('day'); toast('Set the amount, then Add'); return;} dayRec(cur).food.push(Object.assign(pickFood(f),{id:Date.now()+'',qty:1,h:new Date().getHours()})); if(!f.starter) f.uses=(f.uses||0)+1; save(); render(); toast('Logged · '+f.kcal+' kcal');};
     r.appendChild(add); if(f.recipe){const ed=document.createElement('button'); ed.className='btn ghost sm'; ed.textContent='Edit'; ed.onclick=()=>{state.recDraft=JSON.parse(JSON.stringify({name:f.recipe.name,servings:f.recipe.servings,cooked:f.recipe.cooked||0,items:f.recipe.items})); save(); renderRec(); $('main').scrollTop=0; toast('Recipe loaded into the builder');}; r.appendChild(ed);}
     if(!f.starter){const del=document.createElement('button'); del.className='x'; del.textContent='×'; del.setAttribute('aria-label','Delete food'); del.onclick=()=>{state.library=state.library.filter(x=>x!==f); save(); renderLib(); toast('Deleted · '+f.name.slice(0,28));}; r.appendChild(del);}
-    list.appendChild(r);});}
+    const nm=r.querySelector('.nm'); nm.style.cursor='pointer'; nm.title='Tap for nutrition'; nm.onclick=()=>{libOpen=libOpen===f.name?null:f.name; renderLib();};
+    list.appendChild(r); if(libOpen===f.name) list.appendChild(libDetail(f));});}
+let libOpen=null;
+function libDetail(f){const w=document.createElement('div'); w.className='note'; w.style.margin='4px 0 10px'; const g=per100(f.name), kc=f.kcal||0, pc=v=>kc>0?' ('+Math.round(v/kc*100)+'% of calories)':'', v1=(v,u)=>v>0?(Math.round(v*10)/10)+' '+u:(v===0?'0 '+u:'not known');
+  const rows=[['Calories',kc+' kcal'],['Protein',v1(f.p||0,'g')+pc((f.p||0)*4)],['Carbohydrate',v1(f.c||0,'g')+pc((f.c||0)*4)],['  of which sugars',v1(f.su,'g')],['Fat',v1(f.f||0,'g')+pc((f.f||0)*9)],['  of which saturates',v1(f.sa,'g')],['Fibre',v1(f.fb,'g')]];
+  if(f.al>0) rows.push(['Alcohol',v1(f.al,'g')]); if(f.cf>0) rows.push(['Caffeine',v1(f.cf,'mg')]); Object.keys(MREF).forEach(k=>{if(f[k]>0) rows.push([MREF[k][2],v1(f[k],MREF[k][1])+(MREF[k][0]?' ('+Math.round(f[k]/MREF[k][0]*100)+'% of daily guide)':'')]);});
+  const src=f.est?'Estimate (typical values, not checked against a pack)':f.recipe?'Your recipe':f.web?'Matched to: '+f.web:f.code?'Barcode '+f.code:f.starter?'Built-in typical values':'Entered or read from a pack';
+  w.innerHTML='<div class="eyebrow">'+(g?'Per 100 g':'Per portion as named')+'</div><table class="src-table" style="margin-top:4px">'+rows.map(r=>'<tr><td'+(r[0][0]===' '?' style="padding-left:14px"':'')+'>'+esc(r[0].trim())+'</td><td class="n">'+esc(r[1])+'</td></tr>').join('')+'</table><div class="small muted" style="margin-top:6px">'+esc(src)+'.'+(g&&f.grams>0?' Usual amount '+f.grams+' g = '+Math.round(kc*f.grams/100)+' kcal.':'')+(f.pack>0?' Pack or dish '+f.pack+' g.':'')+(f.uses?' Logged '+f.uses+' time'+(f.uses>1?'s':'')+'.':'')+'</div>'; return w;}
 $('#libSearch').oninput=renderLib;
 
 /* ---------- settings ---------- */
@@ -1292,6 +1299,13 @@ async function webFill(food){const isG=per100(food.name), q=food.name.replace(/\
   if(!best||bs<Math.max(1,Math.ceil(ts.length/2))) return false; const p100=per100(best.name); let k=null; if(isG&&p100) k=1; else if(!isG&&!p100) k=1; else if(!isG&&p100&&best.grams>0) k=best.grams/100; if(k==null) return false;
   const kc=Math.round(best.kcal*k); if(food.kcal>0&&(kc<food.kcal*0.65||kc>food.kcal*1.35)) return false;
   Object.assign(food,{kcal:kc,p:r1(best.p*k),c:r1(best.c*k),f:r1(best.f*k),web:best.name.replace(/\s*\(100 ?g\)\s*$/i,'')}); AK.forEach(x=>{if(best[x]>0) food[x]=r2(best[x]*k);}); delete food.est; return true;}
+function crossCheck(f){if(f.q!=='m'||!(f.kcal>0)) return 0; const isG=per100(f.name), base=n=>n.replace(/\s*\((?:[^()]|\([^()]*\))*\)\s*$/,'').toLowerCase(), tok=n=>base(n).split(/[^a-z0-9]+/).filter(t=>t.length>2), nt=tok(f.name); let n=0;
+  state.library.forEach(e=>{if(!e.est) return; if(e.name.toLowerCase()!==f.name.toLowerCase()){if(!isG||!per100(e.name)) return; const et=tok(e.name); if(!et.length||!et.every(t=>nt.includes(t))) return; if(e.kcal>0&&(f.kcal<e.kcal*0.65||f.kcal>e.kcal*1.35)) return; e.web=f.name.replace(/\s*\(100 ?g\)\s*$/i,'');}
+    Object.assign(e,{kcal:f.kcal,p:f.p||0,c:f.c||0,f:f.f||0}); AK.forEach(x=>{if(f[x]>0) e[x]=f[x];}); delete e.est; n++;}); return n;}
+async function autoCheck(){if(IN_VIEWER||webBusy) return; const now=Date.now(), list=state.library.filter(f=>f.est&&!(f.chk&&now-f.chk<7*864e5)).sort((a,b)=>(b.uses||0)-(a.uses||0)).slice(0,6); let ok=0, bad=0, done=0;
+  for(const f of list){if(webBusy) break; try{const hit=await webFill(f); f.chk=Date.now(); done++; bad=0; if(hit) ok++;}catch(e){if(e&&e.message==='empty'){f.chk=Date.now(); done++;} else if(++bad>=2) break;} await new Promise(r=>setTimeout(r,7000));}
+  if(done){save(true); if(ok){render(); toast(ok+' estimate'+(ok>1?'s':'')+' in My foods checked against product data');}}}
+setTimeout(autoCheck,8000);
 let webBusy=false;
 $('#webAll').onclick=async()=>{const st=$('#webStatus'), btn=$('#webAll'); if(webBusy){webBusy=false; return;} const list=state.library.filter(f=>f.est); if(!list.length) return; webBusy=true; btn.textContent='Stop'; let ok=0, fail=0, i=0;
   for(const f of list){if(!webBusy) break; i++; st.className='status'; st.textContent=i+' of '+list.length+': '+f.name.slice(0,26)+'…'; try{if(await webFill(f)) ok++;}catch(e){fail++; if(fail>=3&&ok===0){st.className='status err'; st.textContent='The product database is not answering. Try again later.'; break;}}
