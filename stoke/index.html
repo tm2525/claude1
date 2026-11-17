@@ -304,7 +304,8 @@ details[open]>.sec-sum{margin-bottom:10px}
       <div class="row" style="margin-top:8px;gap:8px"><div class="field" style="flex:1"><label for="limSu">Sugar limit g a day</label><input type="number" id="limSu" min="0" step="5" placeholder="off"></div><div class="field" style="flex:1"><label for="limCb">Carb limit g a day</label><input type="number" id="limCb" min="0" step="5" placeholder="off"></div></div>
       <div class="small muted" id="limNote2" style="margin-top:6px"></div>
     </details>
-    <div class="row" style="margin-top:10px"><button type="button" class="btn ghost sm" id="cpPrev" hidden>Copy yesterday here</button><button type="button" class="btn ghost sm" id="cpNext" hidden>Copy this day to tomorrow</button></div>
+    <div class="row" style="margin-top:10px"><button type="button" class="btn ghost sm" id="cpPrev" hidden>Copy yesterday here</button><button type="button" class="btn ghost sm" id="cpNext" hidden>Copy this day to tomorrow</button><button type="button" class="btn ghost sm" id="cpPick">Pick from another day</button></div>
+    <div id="cpBox" class="note" hidden style="margin-top:8px"></div>
   </section>
 
   <section class="card">
@@ -1403,6 +1404,14 @@ try{const hm0=(location.hash||'').match(/^#health=(.+)$/); if(hm0){const n=impor
 /* ---------- plan ahead ---------- */
 const dayShift=(k,n)=>{const d=new Date(k+'T12:00:00'); d.setDate(d.getDate()+n); return iso(d);};
 const copyDay=(from,to)=>{const src=state.days[from]; if(!src||!src.food.length) return 0; const d=dayRec(to); src.food.forEach((f,i)=>d.food.push(Object.assign({},f,{id:Date.now()+'c'+i}))); return src.food.length;};
+let cpFrom=null;
+function renderPick(){const box=$('#cpBox'); if(cpFrom===null){box.hidden=true; box.innerHTML=''; return;} box.hidden=false; const days=Object.keys(state.days).filter(k=>k!==cur&&hasFood(k)).sort().reverse().slice(0,60), dl=k=>new Date(k+'T12:00:00').toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short'});
+  if(!days.length){box.innerHTML='<div class="small muted">No other days have food logged yet.</div>'; return;} if(!days.includes(cpFrom)) cpFrom=days[0]; const items=state.days[cpFrom].food;
+  box.innerHTML='<div class="field"><label for="cpDay">Day to pick from</label><select id="cpDay">'+days.map(k=>'<option value="'+k+'"'+(k===cpFrom?' selected':'')+'>'+dl(k)+' \u00b7 '+state.days[k].food.length+' item'+(state.days[k].food.length>1?'s':'')+'</option>').join('')+'</select></div><div style="margin-top:8px">'+items.map((f,i)=>'<label class="check" style="align-items:flex-start;padding:5px 0;border-bottom:1px dashed var(--rule)"><input type="checkbox" data-i="'+i+'" style="margin-top:3px"> <span style="flex:1;min-width:0;overflow-wrap:anywhere">'+esc(f.name)+(f.qty!==1?' \u00d7'+f.qty:'')+'</span><span class="num" style="margin-left:8px">'+fmt(f.kcal*f.qty)+'</span></label>').join('')+'</div><div class="row" style="margin-top:8px"><button type="button" class="btn sm" id="cpAdd">Add selected</button><button type="button" class="btn ghost sm" id="cpAll">Select all</button><button type="button" class="btn ghost sm" id="cpClose">Close</button><span class="small muted num" id="cpSum"></span></div>';
+  const cbs=[...box.querySelectorAll('input[type=checkbox]')], sum=()=>{const sel=cbs.filter(c=>c.checked); $('#cpSum').textContent=sel.length?sel.length+' selected \u00b7 '+fmt(sel.reduce((a,c)=>a+items[c.dataset.i].kcal*items[c.dataset.i].qty,0))+' kcal':'';};
+  cbs.forEach(c=>c.onchange=sum); $('#cpDay').onchange=e=>{cpFrom=e.target.value; renderPick();}; $('#cpClose').onclick=()=>{cpFrom=null; renderPick();}; $('#cpAll').onclick=()=>{const all=cbs.every(c=>c.checked); cbs.forEach(c=>c.checked=!all); sum();};
+  $('#cpAdd').onclick=()=>{const sel=cbs.filter(c=>c.checked).map(c=>items[c.dataset.i]); if(!sel.length){toast('Tick the items to add first'); return;} const d=dayRec(cur), today=cur===todayIso(), from=dl(cpFrom); sel.forEach((f,i)=>{const o=JSON.parse(JSON.stringify(f)); o.id=Date.now()+'p'+i; if(today) o.h=new Date().getHours(); d.food.push(o);}); cpFrom=null; save(); render(); renderPick(); toast('Added '+sel.length+' item'+(sel.length>1?'s':'')+' from '+from);};}
+$('#cpPick').onclick=()=>{cpFrom=cpFrom===null?dayShift(cur,-1):null; renderPick();};
 $('#cpPrev').onclick=()=>{const n=copyDay(dayShift(cur,-1),cur); if(n){save(); render(); toast('Copied '+n+' item'+(n>1?'s':'')+' from the day before');}};
 $('#cpNext').onclick=()=>{const to=dayShift(cur,1), n=copyDay(cur,to); if(n){save(); render(); toast('Copied to '+new Date(to+'T12:00:00').toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short'}));}};
 
