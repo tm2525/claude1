@@ -927,23 +927,45 @@ async function readViaApi(file,prompt,maxTok){const key=state.settings.apiKey; i
     body:JSON.stringify({model:'claude-sonnet-5-5',max_tokens:maxTok||400,messages:[{role:'user',content:[...imgs,{type:'text',text:prompt||PROMPT}]}]})});
   if(!r.ok) throw await apiFail(r);
   const j=await r.json(); const t=(j.content||[]).filter(c=>c.type==='text').map(c=>c.text).join('\n'); return parseLoose(t);}
+/* ---------- label reading on the phone itself, no key ---------- */
+let ocrP=null; function loadOCR(){return ocrP||(ocrP=new Promise((res,rej)=>{const s=document.createElement('script'); s.src='ocr/tesseract.min.js'; s.onload=res; s.onerror=()=>{ocrP=null; rej({code:'ocr_load',message:'the text reader did not load; check your connection'});}; document.head.appendChild(s);}));}
+let ocrW=null; async function ocrText(file,onP){await loadOCR(); if(!ocrW){ocrW=await Tesseract.createWorker('eng',1,{workerPath:'ocr/worker.min.js',corePath:'ocr/',langPath:'ocr/',gzip:true,logger:m=>{if(ocrText.cb&&m&&m.status) ocrText.cb(m.status,m.progress||0);}}); await ocrW.setParameters({tessedit_pageseg_mode:'11'});} ocrText.cb=onP;
+  const img=new Image(), u=URL.createObjectURL(file); await new Promise((res,rej)=>{img.onload=res; img.onerror=()=>rej({code:'image_rejected'}); img.src=u;}); URL.revokeObjectURL(u);
+  const s=Math.min(1,3000/Math.max(img.width,img.height)), c=document.createElement('canvas'); c.width=Math.round(img.width*s); c.height=Math.round(img.height*s); c.getContext('2d').drawImage(img,0,0,c.width,c.height);
+  const r=await ocrW.recognize(c), ws=((r&&r.data&&r.data.words)||[]).filter(w=>w.text&&w.text.trim()&&w.bbox); if(!ws.length) return (r&&r.data&&r.data.text)||''; return ocrRows(ws);}
+function ocrRows(ws){const hs=ws.map(w=>w.bbox.y1-w.bbox.y0).sort((a,b)=>a-b), mh=hs[Math.floor(hs.length/2)]||20, pts=ws.map(w=>({t:w.text.trim(),x:w.bbox.x0,y:(w.bbox.y0+w.bbox.y1)/2}));
+  const group=k=>{const lines=[]; pts.map(o=>({t:o.t,x:o.x,y:o.y-o.x*k})).sort((a,b)=>a.y-b.y).forEach(o=>{const l=lines.find(l=>Math.abs(l.y-o.y)<mh*0.55); if(l){l.w.push(o); l.y=(l.y*(l.w.length-1)+o.y)/l.w.length;} else lines.push({y:o.y,w:[o]});}); return lines;};
+  let best=null; for(let d=-8;d<=8;d+=0.5){const g=group(Math.tan(d*Math.PI/180)); if(!best||g.length<best.length||(g.length===best.length&&Math.abs(d)<Math.abs(best.d))){best=g; best.d=d;}}
+  return best.map(l=>l.w.sort((a,b)=>a.x-b.x).map(o=>o.t).join(' ')).join('\n');}
+function parseLabel(text){const fix=l=>l.replace(/(\d)\s*,\s*(\d)/g,'$1.$2').replace(/(\d)\s+\.\s*(\d)/g,'$1.$2').replace(/\b[oO]\.(\d)/g,'0.$1').replace(/(\d)[oO](?=\d|\b)/g,'$10').replace(/(\d)l(?=g\b)/g,'$11'), L=String(text).replace(/[|\[\]{}~_—]/g,' ').split(/\n/).map(l=>fix(l.trim())).filter(Boolean), out={};
+  const HR=/100\s*(g|9|ml|mi)\b/i, SR=/serving|portion|\bpack\b|\bbar\b|\bpot\b|slice|\beach\b/i, hd=L.find(l=>HR.test(l)); let col=0; if(hd&&SR.test(hd)&&hd.search(SR)<hd.search(HR)) col=1; const per100=!!hd;
+  const nums=(a,unitInLabel)=>{const r=[]; const re=/(<\s*)?(\d+(?:\.\d+)?)\s*(mg|g\b|g(?=\s|$)|%)?/gi; let m; while((m=re.exec(a))){if(m[3]==='%') continue; let t=m[2], v=parseFloat(t); if(!m[3]&&!unitInLabel&&/9$/.test(t)&&t.replace('.','').length>=2){t=t.slice(0,-1).replace(/\.$/,''); v=parseFloat(t);} if(/mg/i.test(m[3]||'')) v=v/1000; if(isFinite(v)&&v<=100) r.push(v);} return r;};
+  const defs=[['su',/(of\s*which\s*)?sugars?/i],['sa',/(of\s*which\s*)?saturate[sd]?(\s*fat)?/i],['fb',/fib(re|er)/i],['p',/prote?i?n|poten/i],['c',/carbohydrates?|carbs?\b/i],['f',/\b(total\s*)?fat\b|^ft\b/i],['salt',/\bsalt\b/i]];
+  L.forEach(ll=>{if(/reference intake|\bRI\b.*adult/i.test(ll)) return;
+    if(out.kcal==null){const all=[...ll.matchAll(/(\d{2,4})\s*k\s*[ce][ae]l/gi)].map(m=>Number(m[1])); if(all.length) out.kcal=all[Math.min(col,all.length-1)]; else if(/energy|calories/i.test(ll)){const kj=[...ll.matchAll(/(\d{2,4})\s*k\s*[jJ\])]/g)].map(m=>Number(m[1])); if(kj.length) out.kj=out.kj||kj[Math.min(col,kj.length-1)]; else {const i=ll.search(/calories/i), n=i>=0&&ll.slice(i).match(/(\d{2,4})/); if(n) out.kcal=Number(n[1]);}}}
+    for(const [k,re] of defs){if(out[k]!=null) continue; const i=ll.search(re); if(i<0) continue; if(k==='f'&&/saturate|of\s*which/i.test(ll)) continue; if(k==='c'&&/of\s*which/i.test(ll)) continue; const m=ll.slice(i).match(re), a=ll.slice(i+m[0].length), v=nums(a,/^\s*\(?\s*g\s*\)?\s/i.test(a)); if(v.length){out[k]=v[Math.min(col,v.length-1)]; break;}}});
+  if(out.kcal==null&&out.kj) out.kcal=Math.round(out.kj/4.184); const got=['p','c','f'].filter(k=>out[k]!=null).length; if(!(out.kcal>0)&&got===3) out.kcal=Math.round(4*out.p+4*out.c+9*out.f); if(!(out.kcal>0)||got<2) return null;
+  const sv=hd&&hd.replace(HR,' ').match(/(\d{1,3}(?:\.\d)?)\s*(g|9|ml)\b/i), calc=4*(out.p||0)+4*(out.c||0)+9*(out.f||0)+2*(out.fb||0); out.ok=got===3&&Math.abs(calc-out.kcal)<=Math.max(15,out.kcal*0.07); out.per100=per100; out.serv=sv?Number(sv[1]):0; return out;}
+async function ocrLabel(file,st){const t=await ocrText(file,(s,p)=>{st.textContent=/recogni/i.test(s)?'Reading the label on this phone… '+Math.round(p*100)+'%':'Getting the text reader ready (first use downloads about 7 MB)…';}); const o=parseLabel(t); if(!o) throw {code:'ocr_none',message:t.trim()?'the text was read but no nutrition table was found':'no text could be read'};
+  return {name:'',kcal_100g:o.per100?o.kcal:0,protein_100g:o.p||0,carbs_100g:o.c||0,fat_100g:o.f||0,fibre_100g:o.fb||0,sugar_100g:o.su||0,salt_100g:o.salt||0,serving_g:o.per100?o.serv:0,kcal:o.kcal,protein:o.p||0,carbs:o.c||0,fat:o.f||0,fibre:o.fb||0,sugar:o.su||0,salt:o.salt||0,serving:o.serv?o.serv+' g':'',source:'label',ocr:true,ok:o.ok};}
 (async()=>{
   const inp=$('#labelFile'), st=$('#labelStatus'), btn=$('#labelBtn');
   // Claude viewer path (if this page is opened as a claude.ai artifact), else API key path
   let viewerSample=null;
   try{ if(window.claude&&typeof claude.use==='function'){const s=await claude.use('sample'); const lim=s?await s.limits().catch(()=>null):null; if(lim&&lim.images) viewerSample=s;} }catch(e){}
-  function refresh(){const ai=!!(viewerSample||state.settings.apiKey); $('#labelRow').hidden=false; $('#mealBtn').hidden=!ai; $('#labelBtn').hidden=!ai; $('#barBtn').hidden=IN_VIEWER;}
+  function refresh(){const ai=!!(viewerSample||state.settings.apiKey); $('#labelRow').hidden=false; $('#mealBtn').hidden=!ai; $('#labelBtn').hidden=!ai&&IN_VIEWER; $('#barBtn').hidden=IN_VIEWER;}
   refresh(); window.__refreshLabel=refresh;
   inp.addEventListener('change',async()=>{
     const file=inp.files&&inp.files[0]; if(!file) return;
     btn.style.pointerEvents='none'; btn.style.opacity='.5'; st.hidden=false; st.className='status'; st.textContent='Photo received ('+(file.size/1048576).toFixed(1)+' MB). Reading the label…'; st.scrollIntoView({block:'nearest'});
     try{
-      const r=viewerSample?await viewerSample.json(PROMPT,{images:[file]}):await readViaApi(file,PROMPT,800);
+      let r=null, why=''; if(viewerSample) r=await viewerSample.json(PROMPT,{images:[file]}); else if(state.settings.apiKey){try{r=await readViaApi(file,PROMPT,800);}catch(e){if(e&&(e.code==='image_rejected'||e.code==='invalid_json')) throw e; why=e&&e.code==='bad_key'?'The API key was rejected, so this was read on the phone instead. ':'Claude could not be reached, so this was read on the phone instead. ';}}
+      if(!r){if(IN_VIEWER) throw {code:'no_key'}; r=await ocrLabel(file,st); r.why=why;}
       if(!r||r.error) throw {code:'nofood',message:r&&r.error||'nothing readable'};
-      const per=Number(r.kcal_100g)>0, nm=String(r.name||'Unnamed food');
+      const per=Number(r.kcal_100g)>0, nm=String(r.name||(r.ocr?(fName.value.trim().replace(/\s*\((?:[^()]|\([^()]*\))*\)\s*$/,'')||'New food'):'Unnamed food'));
       fillFood(per?{name:nm+' (100 g)',kcal:Math.round(Number(r.kcal_100g)),p:Number(r.protein_100g)||0,c:Number(r.carbs_100g)||0,f:Number(r.fat_100g)||0,fb:Number(r.fibre_100g)||0,su:Number(r.sugar_100g)||0,sa:Number(r.salt_100g)||0,grams:Number(r.serving_g)||0,pack:Number(r.pack_g)||0,q:r.source==='estimate'?'e':'m'}
                   :{name:nm+(r.serving?' ('+String(r.serving)+')':''),kcal:Math.round(Number(r.kcal)||0),p:Number(r.protein)||0,c:Number(r.carbs)||0,f:Number(r.fat)||0,fb:Number(r.fibre)||0,su:Number(r.sugar)||0,sa:Number(r.salt)||0,q:r.source==='estimate'?'e':'m'});
-      st.className='status ok'; st.textContent=(r.source==='estimate'?'Estimated from the photo, so check the numbers. ':'Read from the label. ')+(r.note?String(r.note)+' ':'')+(per?'Values are per 100 g'+(Number(r.serving_g)?', set to one '+Number(r.serving_g)+' g serving':'')+'. Set the amount and unit, then Add.':'Set the amount, then Add.');
+      st.className='status ok'; if(r.ocr){const cm=$('#foodForm details'); if(cm) cm.open=true;} st.textContent=(r.ocr?(r.why||'')+'Read on this phone without Claude'+(r.ok?'; the numbers add up, but check them against the pack. ':'. Some numbers look off, so check each against the pack. ')+(nm==='New food'?'Type the food name. ':''):r.source==='estimate'?'Estimated from the photo, so check the numbers. ':'Read from the label. ')+(r.note?String(r.note)+' ':'')+(per?'Values are per 100 g'+(Number(r.serving_g)?', set to one '+Number(r.serving_g)+' g serving':'')+'. Set the amount and unit, then Add.':'Set the amount, then Add.');
     }catch(e){
       st.className='status err'; const c=e&&e.code;
       st.textContent=c==='no_key'?'Add your Anthropic API key under Set to enable label reading.':
@@ -952,6 +974,8 @@ async function readViaApi(file,prompt,maxTok){const key=state.settings.apiKey; i
         c==='rate_limited'?'Too many reads for now; try again in a minute.':
         c==='image_rejected'?'That image could not be used; try a sharper, closer photo.':
         c==='nofood'?'No food label found in that photo ('+e.message+').':
+        c==='ocr_none'?'Could not read a nutrition table ('+e.message+'). Take it straight on, close up, in good light, with the whole table in frame. Curved or shiny packs are hard.':
+        c==='ocr_load'?'Could not start the reader ('+e.message+').':
         c==='invalid_json'?'Could not make out the numbers; try a closer, better-lit photo.':
         'Could not read that photo ('+(e&&e.message||'network blocked or offline')+'). Type the values instead.';
     }finally{btn.style.pointerEvents='';btn.style.opacity='';inp.value='';}
