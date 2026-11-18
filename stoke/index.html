@@ -2,7 +2,7 @@
 <html lang="en-GB">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Stoke">
@@ -1039,7 +1039,7 @@ $('#keyTest').onclick=async()=>{const st=$('#keyStatus'), key=(state.settings.ap
     if(r.ok){st.className='status ok'; st.textContent='The key works. Photos, typed logging and online lookup are on.'; return;} const f=await apiFail(r); st.className='status err';
     st.textContent=f.code==='bad_key'?'Anthropic rejected this key. Check it was copied whole (it starts sk-ant-), or create a new one at console.anthropic.com.':f.code==='rate_limited'?'The key is valid but rate limited right now; try again in a minute.':'The key was accepted but the request failed: '+f.message+'.';}
   catch(e){st.className='status err'; st.textContent='Could not reach Anthropic at all. Check your connection, and turn off any content blocker or VPN for this app.';}};
-$('#sKey').onchange=e=>{state.settings.apiKey=e.target.value.trim(); save(); render(); toast(state.settings.apiKey?'Claude features on':'Claude features off');};
+$('#sKey').onchange=e=>{const k=e.target.value.replace(/[\s"'\u2018\u2019\u201c\u201d]/g,''); state.settings.apiKey=k; save(); render(); const st=$('#keyStatus'); if(k&&!/^sk-ant-/.test(k)){st.hidden=false; st.className='status err'; st.textContent='That does not look like an Anthropic API key. A key starts with sk-ant- and is about 100 characters long. It is created at console.anthropic.com under API keys; your Claude login or subscription is not a key.';} else if(k){$('#keyTest').click();} else st.hidden=true; toast(k?'Key saved':'Claude features off');};
 $('#sBmr').onchange=e=>{const v=num(e.target.value); if(v){state.settings.bmr=v; save(); render();}};
 $('#sGoal').onchange=e=>{const v=num(e.target.value)||0; if(state.settings.targetMode==='intake') state.settings.intake=Math.max(0,v); else state.settings.goal=v; save(); render();};
 $('#sMode').onchange=e=>{state.settings.targetMode=e.target.value; save(); render();};
